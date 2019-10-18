@@ -94,8 +94,10 @@ log_cb (const gchar *log_domain, GLogLevelFlags log_level, const gchar *message,
     }
 
     /* Log to stderr if requested */
-    if (debug)
+    if (debug) {
         g_printerr ("%s", text);
+        CT_SYSLOG(LOG_ERR, "%s", text);
+    }
     else
         g_log_default_handler (log_domain, log_level, message, data);
 }
@@ -114,7 +116,7 @@ log_init (void)
     fcntl (log_fd, F_SETFD, FD_CLOEXEC);
     g_log_set_default_handler (log_cb, NULL);
 
-    g_debug ("Logging to %s", path);
+    CT_SYSLOG(LOG_DEBUG, "Logging to %s", path);
 }
 
 static GList*
@@ -165,7 +167,7 @@ signal_cb (Process *process, int signum)
     {
     case SIGINT:
     case SIGTERM:
-        g_debug ("Caught %s signal, shutting down", g_strsignal (signum));
+        CT_SYSLOG(LOG_DEBUG, "Caught %s signal, shutting down", g_strsignal (signum));
         display_manager_stop (display_manager);
         // FIXME: Stop XDMCP server
         break;
@@ -179,7 +181,7 @@ signal_cb (Process *process, int signum)
 static void
 display_manager_stopped_cb (DisplayManager *display_manager)
 {
-    g_debug ("Stopping daemon");
+    CT_SYSLOG(LOG_DEBUG, "Stopping daemon");
     g_main_loop_quit (loop);
 }
 
@@ -187,7 +189,7 @@ static Seat *
 create_seat (const gchar *module_name, const gchar *name)
 {
     if (strcmp (module_name, "xlocal") == 0) {
-        g_warning ("Seat type 'xlocal' is deprecated, use 'type=local' instead");
+        CT_SYSLOG(LOG_WARNING, "Seat type 'xlocal' is deprecated, use 'type=local' instead");
         module_name = "local";
     }
 
@@ -202,7 +204,7 @@ create_seat (const gchar *module_name, const gchar *name)
 static Seat *
 service_add_xlocal_seat_cb (DisplayManagerService *service, gint display_number)
 {
-    g_debug ("Adding local X seat :%d", display_number);
+    CT_SYSLOG (LOG_DEBUG, "Adding local X seat :%d", display_number);
 
     g_autoptr(Seat) seat = create_seat ("xremote", "xremote0"); // FIXME: What to use for a name?
     if (!seat)
@@ -267,6 +269,7 @@ display_manager_seat_removed_cb (DisplayManager *display_manager, Seat *seat)
 static gboolean
 xdmcp_session_cb (XDMCPServer *server, XDMCPSession *session)
 {
+    CT_SYSLOG (LOG_DEBUG, "");
     g_autoptr(SeatXDMCPSession) seat = seat_xdmcp_session_new (session);
 
     g_autofree gchar *name = g_strdup_printf ("xdmcp%d", xdmcp_client_count);
@@ -281,6 +284,8 @@ static void
 vnc_connection_cb (VNCServer *server, GSocket *connection)
 {
     g_autoptr(SeatXVNC) seat = seat_xvnc_new (connection);
+
+    CT_SYSLOG (LOG_DEBUG, "");
 
     g_autofree gchar *name = g_strdup_printf ("vnc%d", vnc_client_count);
     vnc_client_count++;
@@ -310,7 +315,9 @@ start_display_manager (void)
         xdmcp_server_set_listen_address (xdmcp_server, listen_address);
         g_autofree gchar *hostname = config_get_string (config_get_instance (), "XDMCPServer", "hostname");
         xdmcp_server_set_hostname (xdmcp_server, hostname);
+
         g_signal_connect (xdmcp_server, XDMCP_SERVER_SIGNAL_NEW_SESSION, G_CALLBACK (xdmcp_session_cb), NULL);
+        CT_SYSLOG (LOG_DEBUG, "XDMCP_SERVER_SIGNAL_NEW_SESSION -> xdmcp_session_cb");
 
         g_autofree gchar *key_name = config_get_string (config_get_instance (), "XDMCPServer", "key");
         g_autofree gchar *key = NULL;
@@ -322,14 +329,14 @@ start_display_manager (void)
             g_autoptr(GError) error = NULL;
             gboolean result = g_key_file_load_from_file (keys, path, G_KEY_FILE_NONE, &error);
             if (error)
-                g_warning ("Unable to load keys from %s: %s", path, error->message);
+                CT_SYSLOG (LOG_WARNING, "Unable to load keys from %s: %s", path, error->message);
 
             if (result)
             {
                 if (g_key_file_has_key (keys, "keyring", key_name, NULL))
                     key = g_key_file_get_string (keys, "keyring", key_name, NULL);
                 else
-                    g_warning ("Key %s not defined", key_name);
+                    CT_SYSLOG (LOG_WARNING, "Key %s not defined", key_name);
             }
         }
         if (key)
@@ -343,7 +350,7 @@ start_display_manager (void)
         }
         else
         {
-            g_debug ("Starting XDMCP server on UDP/IP port %d", xdmcp_server_get_port (xdmcp_server));
+            CT_SYSLOG (LOG_DEBUG, "Starting XDMCP server on UDP/IP port %d", xdmcp_server_get_port (xdmcp_server));
             xdmcp_server_start (xdmcp_server);
         }
     }
@@ -363,24 +370,29 @@ start_display_manager (void)
             }
             g_autofree gchar *listen_address = config_get_string (config_get_instance (), "VNCServer", "listen-address");
             vnc_server_set_listen_address (vnc_server, listen_address);
+
+            CT_SYSLOG(LOG_INFO, "VNC_SERVER_SIGNAL_NEW_CONNECTION -> vnc_connection_cb");
             g_signal_connect (vnc_server, VNC_SERVER_SIGNAL_NEW_CONNECTION, G_CALLBACK (vnc_connection_cb), NULL);
 
-            g_debug ("Starting VNC server on TCP/IP port %d", vnc_server_get_port (vnc_server));
             vnc_server_start (vnc_server);
+            CT_SYSLOG(LOG_DEBUG, "starting VNC server on TCP/IP port %d", vnc_server_get_port (vnc_server));
         }
-        else
-            g_warning ("Can't start VNC server, Xvnc is not in the path");
+        else {
+            CT_SYSLOG(LOG_ERR, "Can't start VNC server, Xvnc is not in the path");
+        }
     }
 }
 static void
 service_ready_cb (DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_DEBUG, "start display manager");
     start_display_manager ();
 }
 
 static void
 service_name_lost_cb (DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_DEBUG, "service name lost cb");
     exit (EXIT_FAILURE);
 }
 
@@ -437,8 +449,10 @@ static void
 remove_login1_seat (Login1Seat *login1_seat)
 {
     Seat *seat = display_manager_get_seat (display_manager, login1_seat_get_id (login1_seat));
-    if (seat)
+    if (seat) {
         seat_stop (seat);
+        CT_SYSLOG(LOG_DEBUG, "seat_stopped");
+    }
 }
 
 static void

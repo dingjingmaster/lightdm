@@ -340,8 +340,7 @@ LIBOBJS =
 LIBS = 
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LIGHTDM_CFLAGS = -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/lib/libffi-3.2.1/include -I/usr/include/libmount -I/usr/include/blkid -I/usr/include/gio-unix-2.0 -pthread 
-
-LIGHTDM_LIBS = -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lXdmcp -lxcb  -laudit -ldjctools
+LIGHTDM_LIBS = -lgio-2.0 -lgobject-2.0 -lglib-2.0 -lXdmcp -lxcb  -laudit
 LIPO = 
 LN_S = ln -s
 LTLIBOBJS = 
@@ -536,7 +535,8 @@ lightdm_LDADD = \
 	$(LIGHTDM_LIBS) \
 	$(top_builddir)/common/libcommon.la \
 	-lgcrypt \
-	-lpam
+	-lpam \
+	-ldjtools
 
 dm_tool_SOURCES = \
 	dm-tool.c

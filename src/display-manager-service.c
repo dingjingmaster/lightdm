@@ -10,6 +10,8 @@
 
 #include <config.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "display-manager-service.h"
 
 enum {
@@ -70,6 +72,7 @@ typedef struct
 DisplayManagerService *
 display_manager_service_new (DisplayManager *manager)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *service = g_object_new (DISPLAY_MANAGER_SERVICE_TYPE, NULL);
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
@@ -81,6 +84,7 @@ display_manager_service_new (DisplayManager *manager)
 static SeatBusEntry *
 seat_bus_entry_new (DisplayManagerService *service, Seat *seat, const gchar *path)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatBusEntry *entry = g_malloc0 (sizeof (SeatBusEntry));
     entry->service = service;
     entry->seat = seat;
@@ -92,6 +96,7 @@ seat_bus_entry_new (DisplayManagerService *service, Seat *seat, const gchar *pat
 static SessionBusEntry *
 session_bus_entry_new (DisplayManagerService *service, Session *session, const gchar *path, const gchar *seat_path)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SessionBusEntry *entry = g_malloc0 (sizeof (SessionBusEntry));
     entry->service = service;
     entry->session = session;
@@ -104,6 +109,7 @@ session_bus_entry_new (DisplayManagerService *service, Session *session, const g
 static void
 emit_object_value_changed (GDBusConnection *bus, const gchar *path, const gchar *interface_name, const gchar *property_name, GVariant *property_value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GVariantBuilder builder;
     g_variant_builder_init (&builder, G_VARIANT_TYPE_ARRAY);
     g_variant_builder_add (&builder, "{sv}", property_name, property_value);
@@ -116,12 +122,13 @@ emit_object_value_changed (GDBusConnection *bus, const gchar *path, const gchar 
                                         "PropertiesChanged",
                                         g_variant_new ("(sa{sv}as)", interface_name, &builder, NULL),
                                         &error))
-        g_warning ("Failed to emit PropertiesChanged signal: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to emit PropertiesChanged signal: %s", error->message);
 }
 
 static void
 emit_object_signal (GDBusConnection *bus, const gchar *path, const gchar *signal_name, const gchar *object_path)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autoptr(GError) error = NULL;
     if (!g_dbus_connection_emit_signal (bus,
                                         NULL,
@@ -130,12 +137,13 @@ emit_object_signal (GDBusConnection *bus, const gchar *path, const gchar *signal
                                         signal_name,
                                         g_variant_new ("(o)", object_path),
                                         &error))
-        g_warning ("Failed to emit %s signal on %s: %s", signal_name, path, error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to emit %s signal on %s: %s", signal_name, path, error->message);
 }
 
 static void
 seat_bus_entry_free (gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatBusEntry *entry = data;
 
     g_free (entry->path);
@@ -145,6 +153,7 @@ seat_bus_entry_free (gpointer data)
 static void
 session_bus_entry_free (gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SessionBusEntry *entry = data;
 
     g_free (entry->path);
@@ -155,6 +164,7 @@ session_bus_entry_free (gpointer data)
 static GVariant *
 get_seat_list (DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     GVariantBuilder builder;
@@ -175,6 +185,7 @@ get_seat_list (DisplayManagerService *service)
 static GVariant *
 get_session_list (DisplayManagerService *service, const gchar *seat_path)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     GVariantBuilder builder;
@@ -202,6 +213,7 @@ handle_display_manager_get_property (GDBusConnection       *connection,
                                      GError               **error,
                                      gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *service = user_data;
 
     if (g_strcmp0 (property_name, "Seats") == 0)
@@ -222,6 +234,7 @@ handle_display_manager_call (GDBusConnection       *connection,
                              GDBusMethodInvocation *invocation,
                              gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *service = user_data;
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
@@ -262,6 +275,7 @@ handle_seat_get_property (GDBusConnection       *connection,
                           GError               **error,
                           gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatBusEntry *entry = user_data;
 
     if (g_strcmp0 (property_name, "CanSwitch") == 0)
@@ -284,6 +298,7 @@ handle_seat_call (GDBusConnection       *connection,
                   GDBusMethodInvocation *invocation,
                   gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatBusEntry *entry = user_data;
 
     if (g_strcmp0 (method_name, "SwitchToGreeter") == 0)
@@ -344,6 +359,7 @@ handle_seat_call (GDBusConnection       *connection,
 static Seat *
 get_seat_for_session (DisplayManagerService *service, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     for (GList *seat_link = display_manager_get_seats (priv->manager); seat_link; seat_link = seat_link->next)
@@ -371,6 +387,7 @@ handle_session_get_property (GDBusConnection       *connection,
                              GError               **error,
                              gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SessionBusEntry *entry = user_data;
 
     if (g_strcmp0 (property_name, "Seat") == 0)
@@ -391,6 +408,7 @@ handle_session_call (GDBusConnection       *connection,
                      GDBusMethodInvocation *invocation,
                      gpointer               user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SessionBusEntry *entry = user_data;
 
     if (g_strcmp0 (method_name, "Lock") == 0)
@@ -410,6 +428,7 @@ handle_session_call (GDBusConnection       *connection,
 static void
 running_user_session_cb (Seat *seat, Session *session, DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     /* Set environment variables when session runs */
@@ -423,7 +442,7 @@ running_user_session_cb (Seat *seat, Session *session, DisplayManagerService *se
     SessionBusEntry *session_entry = session_bus_entry_new (service, session, g_object_get_data (G_OBJECT (session), "XDG_SESSION_PATH"), seat_entry ? seat_entry->path : NULL);
     g_hash_table_insert (priv->session_bus_entries, g_object_ref (session), session_entry);
 
-    g_debug ("Registering session with bus path %s", session_entry->path);
+    CT_SYSLOG(LOG_DEBUG, "Registering session with bus path %s", session_entry->path);
 
     static const GDBusInterfaceVTable session_vtable =
     {
@@ -438,7 +457,7 @@ running_user_session_cb (Seat *seat, Session *session, DisplayManagerService *se
                                                                session_entry, NULL,
                                                                &error);
     if (session_entry->bus_id == 0)
-        g_warning ("Failed to register user session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to register user session: %s", error->message);
 
     emit_object_value_changed (priv->bus, "/org/freedesktop/DisplayManager", "org.freedesktop.DisplayManager", "Sessions", get_session_list (service, NULL));
     emit_object_signal (priv->bus, "/org/freedesktop/DisplayManager", "SessionAdded", session_entry->path);
@@ -450,6 +469,7 @@ running_user_session_cb (Seat *seat, Session *session, DisplayManagerService *se
 static void
 session_removed_cb (Seat *seat, Session *session, DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     g_signal_handlers_disconnect_matched (session, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, seat);
@@ -476,6 +496,7 @@ session_removed_cb (Seat *seat, Session *session, DisplayManagerService *service
 static void
 seat_added_cb (DisplayManager *display_manager, Seat *seat, DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     g_autofree gchar *path = g_strdup_printf ("/org/freedesktop/DisplayManager/Seat%d", priv->seat_index);
@@ -484,7 +505,7 @@ seat_added_cb (DisplayManager *display_manager, Seat *seat, DisplayManagerServic
     SeatBusEntry *entry = seat_bus_entry_new (service, seat, path);
     g_hash_table_insert (priv->seat_bus_entries, g_object_ref (seat), entry);
 
-    g_debug ("Registering seat with bus path %s", entry->path);
+    CT_SYSLOG(LOG_DEBUG, "Registering seat with bus path %s", entry->path);
 
     static const GDBusInterfaceVTable seat_vtable =
     {
@@ -499,18 +520,21 @@ seat_added_cb (DisplayManager *display_manager, Seat *seat, DisplayManagerServic
                                                        entry, NULL,
                                                        &error);
     if (entry->bus_id == 0)
-        g_warning ("Failed to register seat: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to register seat: %s", error->message);
 
     emit_object_value_changed (priv->bus, "/org/freedesktop/DisplayManager", "org.freedesktop.DisplayManager", "Seats", get_seat_list (service));
     emit_object_signal (priv->bus, "/org/freedesktop/DisplayManager", "SeatAdded", entry->path);
 
+    CT_SYSLOG(LOG_INFO, "connect SEAT_SIGNAL_RUNNING_USER_SESSION -> running_user_session_cb");
     g_signal_connect (seat, SEAT_SIGNAL_RUNNING_USER_SESSION, G_CALLBACK (running_user_session_cb), service);
+    CT_SYSLOG(LOG_INFO, "connect SEAT_SIGNAL_SESSION_REMOVED -> session_removed_cb");
     g_signal_connect (seat, SEAT_SIGNAL_SESSION_REMOVED, G_CALLBACK (session_removed_cb), service);
 }
 
 static void
 seat_removed_cb (DisplayManager *display_manager, Seat *seat, DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     SeatBusEntry *entry = g_hash_table_lookup (priv->seat_bus_entries, seat);
@@ -530,10 +554,11 @@ bus_acquired_cb (GDBusConnection *connection,
                  const gchar     *name,
                  gpointer         user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *service = user_data;
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
-    g_debug ("Acquired bus name %s", name);
+    CT_SYSLOG(LOG_WARNING, "Acquired bus name %s", name);
 
     priv->bus = g_object_ref (connection);
 
@@ -618,16 +643,19 @@ bus_acquired_cb (GDBusConnection *connection,
                                                       service, NULL,
                                                       &error);
     if (priv->reg_id == 0)
-        g_warning ("Failed to register display manager: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to register display manager: %s", error->message);
     g_dbus_node_info_unref (display_manager_info);
 
     /* Add objects for existing seats and listen to new ones */
+    CT_SYSLOG(LOG_INFO, "connect DISPLAY_MANAGER_SIGNAL_SEAT_ADDED -> seat_added_cb");
     g_signal_connect (priv->manager, DISPLAY_MANAGER_SIGNAL_SEAT_ADDED, G_CALLBACK (seat_added_cb), service);
+    CT_SYSLOG(LOG_INFO, "connect DISPLAY_MANAGER_SIGNAL_SEAT_REMOVED -> seat_removed_cb");
     g_signal_connect (priv->manager, DISPLAY_MANAGER_SIGNAL_SEAT_REMOVED, G_CALLBACK (seat_removed_cb), service);
     for (GList *link = display_manager_get_seats (priv->manager); link; link = link->next)
         seat_added_cb (priv->manager, (Seat *) link->data, service);
 
     g_signal_emit (service, signals[READY], 0);
+    CT_SYSLOG(LOG_DEBUG, "emit signal READY");
 }
 
 static void
@@ -635,6 +663,7 @@ name_lost_cb (GDBusConnection *connection,
               const gchar *name,
               gpointer user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *service = user_data;
 
     if (connection)
@@ -642,17 +671,19 @@ name_lost_cb (GDBusConnection *connection,
     else
         g_printerr ("Failed to get D-Bus connection\n");
 
+    CT_SYSLOG(LOG_DEBUG, "emit signal NAME_LOST");
     g_signal_emit (service, signals[NAME_LOST], 0);
 }
 
 void
 display_manager_service_start (DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
 
     g_return_if_fail (service != NULL);
 
-    g_debug ("Using D-Bus name %s", LIGHTDM_BUS_NAME);
+    CT_SYSLOG(LOG_DEBUG, "Using D-Bus name %s", LIGHTDM_BUS_NAME);
     priv->bus_id = g_bus_own_name (getuid () == 0 ? G_BUS_TYPE_SYSTEM : G_BUS_TYPE_SESSION,
                                    LIGHTDM_BUS_NAME,
                                    G_BUS_NAME_OWNER_FLAGS_NONE,
@@ -666,6 +697,7 @@ display_manager_service_start (DisplayManagerService *service)
 static void
 display_manager_service_init (DisplayManagerService *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (service);
     priv->seat_bus_entries = g_hash_table_new_full (g_direct_hash, g_direct_equal, g_object_unref, seat_bus_entry_free);
     priv->session_bus_entries = g_hash_table_new_full (g_direct_hash, g_direct_equal, g_object_unref, session_bus_entry_free);
@@ -674,6 +706,7 @@ display_manager_service_init (DisplayManagerService *service)
 static void
 display_manager_service_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     DisplayManagerService *self = DISPLAY_MANAGER_SERVICE (object);
     DisplayManagerServicePrivate *priv = display_manager_service_get_instance_private (self);
 
@@ -694,6 +727,7 @@ display_manager_service_finalize (GObject *object)
 static void
 display_manager_service_class_init (DisplayManagerServiceClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     object_class->finalize = display_manager_service_finalize;

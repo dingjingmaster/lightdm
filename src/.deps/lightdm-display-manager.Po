@@ -33,6 +33,14 @@ lightdm-display-manager.o: display-manager.c /usr/include/stdc-predef.h \
  /usr/include/sys/ucontext.h /usr/include/bits/sigstack.h \
  /usr/include/bits/ss_flags.h /usr/include/bits/types/struct_sigstack.h \
  /usr/include/bits/sigthread.h /usr/include/bits/signal_ext.h \
+ /usr/include/djctool/clib_syslog.h /usr/include/stdio.h \
+ /usr/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include/stdarg.h \
+ /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
+ /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
+ /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/bits/stdio.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h \
  display-manager.h /usr/include/glib-2.0/glib-object.h \
  /usr/include/glib-2.0/gobject/gbinding.h /usr/include/glib-2.0/glib.h \
  /usr/include/glib-2.0/glib/galloca.h /usr/include/glib-2.0/glib/gtypes.h \
@@ -51,7 +59,6 @@ lightdm-display-manager.o: display-manager.c /usr/include/stdc-predef.h \
  /usr/include/glib-2.0/glib/gasyncqueue.h \
  /usr/include/glib-2.0/glib/gthread.h \
  /usr/include/glib-2.0/glib/gatomic.h /usr/include/glib-2.0/glib/gerror.h \
- /usr/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include/stdarg.h \
  /usr/include/glib-2.0/glib/gquark.h /usr/include/glib-2.0/glib/gutils.h \
  /usr/include/glib-2.0/glib/gbacktrace.h \
  /usr/include/glib-2.0/glib/gbase64.h \
@@ -418,6 +425,36 @@ lightdm-display-manager.o: display-manager.c /usr/include/stdc-predef.h \
 
 /usr/include/bits/signal_ext.h:
 
+/usr/include/djctool/clib_syslog.h:
+
+/usr/include/stdio.h:
+
+/usr/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include/stdarg.h:
+
+/usr/include/bits/types/__fpos_t.h:
+
+/usr/include/bits/types/__mbstate_t.h:
+
+/usr/include/bits/types/__fpos64_t.h:
+
+/usr/include/bits/types/__FILE.h:
+
+/usr/include/bits/types/FILE.h:
+
+/usr/include/bits/types/struct_FILE.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/bits/stdio.h:
+
+/usr/include/syslog.h:
+
+/usr/include/sys/syslog.h:
+
+/usr/include/bits/syslog-path.h:
+
 display-manager.h:
 
 /usr/include/glib-2.0/glib-object.h:
@@ -469,8 +506,6 @@ display-manager.h:
 /usr/include/glib-2.0/glib/gatomic.h:
 
 /usr/include/glib-2.0/glib/gerror.h:
-
-/usr/lib/gcc/x86_64-pc-linux-gnu/9.2.0/include/stdarg.h:
 
 /usr/include/glib-2.0/glib/gquark.h:
 

@@ -277,7 +277,14 @@ lightdm-console-kit.o: console-kit.c /usr/include/stdc-predef.h \
  /usr/include/glib-2.0/gio/gnotification.h \
  /usr/include/glib-2.0/gio/glistmodel.h \
  /usr/include/glib-2.0/gio/gliststore.h \
- /usr/include/glib-2.0/gio/gio-autocleanups.h console-kit.h
+ /usr/include/glib-2.0/gio/gio-autocleanups.h \
+ /usr/include/djctool/clib_syslog.h /usr/include/stdio.h \
+ /usr/include/bits/types/__fpos_t.h /usr/include/bits/types/__mbstate_t.h \
+ /usr/include/bits/types/__fpos64_t.h /usr/include/bits/types/__FILE.h \
+ /usr/include/bits/types/FILE.h /usr/include/bits/types/struct_FILE.h \
+ /usr/include/bits/stdio_lim.h /usr/include/bits/sys_errlist.h \
+ /usr/include/bits/stdio.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h console-kit.h
 
 /usr/include/stdc-predef.h:
 
@@ -972,5 +979,33 @@ lightdm-console-kit.o: console-kit.c /usr/include/stdc-predef.h \
 /usr/include/glib-2.0/gio/gliststore.h:
 
 /usr/include/glib-2.0/gio/gio-autocleanups.h:
+
+/usr/include/djctool/clib_syslog.h:
+
+/usr/include/stdio.h:
+
+/usr/include/bits/types/__fpos_t.h:
+
+/usr/include/bits/types/__mbstate_t.h:
+
+/usr/include/bits/types/__fpos64_t.h:
+
+/usr/include/bits/types/__FILE.h:
+
+/usr/include/bits/types/FILE.h:
+
+/usr/include/bits/types/struct_FILE.h:
+
+/usr/include/bits/stdio_lim.h:
+
+/usr/include/bits/sys_errlist.h:
+
+/usr/include/bits/stdio.h:
+
+/usr/include/syslog.h:
+
+/usr/include/sys/syslog.h:
+
+/usr/include/bits/syslog-path.h:
 
 console-kit.h:

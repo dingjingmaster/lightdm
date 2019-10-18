@@ -90,7 +90,6 @@ lightdm_LDADD = \
 	$(top_builddir)/common/libcommon.la \
 	-lgcrypt \
 	-lpam \
-	-ldjctools \
 
 dm_tool_SOURCES = \
 	dm-tool.c

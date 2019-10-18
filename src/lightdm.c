@@ -21,6 +21,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "configuration.h"
 #include "display-manager.h"
 #include "display-manager-service.h"
@@ -442,6 +444,7 @@ remove_login1_seat (Login1Seat *login1_seat)
 static void
 seat_stopped_cb (Seat *seat, Login1Seat *login1_seat)
 {
+    CT_SYSLOG(LOG_DEBUG, "seat_stopped_cb");
     update_login1_seat (login1_seat);
     g_signal_handlers_disconnect_matched (seat, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, login1_seat);
 }
@@ -456,8 +459,10 @@ update_login1_seat (Login1Seat *login1_seat)
         Seat *seat = display_manager_get_seat (display_manager, login1_seat_get_id (login1_seat));
         if (seat)
         {
-            if (seat_get_is_stopping (seat))
+            if (seat_get_is_stopping (seat)) {
                 g_signal_connect (seat, SEAT_SIGNAL_STOPPED, G_CALLBACK (seat_stopped_cb), login1_seat);
+                CT_SYSLOG(LOG_DEBUG, "SEAT_SIGNAL_STOPPED -> seat_stopped_cb");
+            }
             return TRUE;
         }
 
@@ -473,6 +478,7 @@ update_login1_seat (Login1Seat *login1_seat)
 static void
 login1_can_graphical_changed_cb (Login1Seat *login1_seat)
 {
+    CT_SYSLOG(LOG_DEBUG, "seat %s changes graphical state to %s", login1_seat_get_id(login1_seat), login1_seat_get_can_graphical(login1_seat)?"true":"false");
     g_debug ("Seat %s changes graphical state to %s", login1_seat_get_id (login1_seat), login1_seat_get_can_graphical (login1_seat) ? "true" : "false");
     update_login1_seat (login1_seat);
 }
@@ -481,6 +487,7 @@ static void
 login1_active_session_changed_cb (Login1Seat *login1_seat, const gchar *login1_session_id)
 {
     g_debug ("Seat %s changes active session to %s", login1_seat_get_id (login1_seat), login1_session_id);
+    CT_SYSLOG(LOG_DEBUG, "Seat %s changes active session to %s", login1_seat_get_id (login1_seat), login1_session_id);
 
     Seat *seat = display_manager_get_seat (display_manager, login1_seat_get_id (login1_seat));
     if (seat)
@@ -491,6 +498,7 @@ login1_active_session_changed_cb (Login1Seat *login1_seat, const gchar *login1_s
         {
             // Session is already active
             g_debug ("Session %s is already active", login1_session_id);
+            CT_SYSLOG(LOG_DEBUG, "Session %s is already active", login1_session_id);
             return;
         }
 
@@ -498,6 +506,7 @@ login1_active_session_changed_cb (Login1Seat *login1_seat, const gchar *login1_s
         if (active_session != NULL)
         {
             g_debug ("Activating session %s", login1_session_id);
+            CT_SYSLOG(LOG_DEBUG, "Activating session %s", login1_session_id);
             seat_set_externally_activated_session (seat, active_session);
             return;
 
@@ -508,9 +517,12 @@ login1_active_session_changed_cb (Login1Seat *login1_seat, const gchar *login1_s
 static gboolean
 login1_add_seat (Login1Seat *login1_seat)
 {
-    if (config_get_boolean (config_get_instance (), "LightDM", "logind-check-graphical"))
+    if (config_get_boolean (config_get_instance (), "LightDM", "logind-check-graphical")) {
+        CT_SYSLOG(LOG_DEBUG, "can-graphical-changed -> login1_can_graphical_changed_cb");
         g_signal_connect (login1_seat, "can-graphical-changed", G_CALLBACK (login1_can_graphical_changed_cb), NULL);
+    }
 
+    CT_SYSLOG(LOG_DEBUG, "LOGIN1_SIGNAL_ACTIVE_SESION_CHANGED -> login1_active_session_changed_cb");
     g_signal_connect (login1_seat, LOGIN1_SIGNAL_ACTIVE_SESION_CHANGED, G_CALLBACK (login1_active_session_changed_cb), NULL);
 
     return update_login1_seat (login1_seat);
@@ -519,10 +531,15 @@ login1_add_seat (Login1Seat *login1_seat)
 static void
 login1_service_seat_added_cb (Login1Service *service, Login1Seat *login1_seat)
 {
-    if (login1_seat_get_can_graphical (login1_seat))
+    if (login1_seat_get_can_graphical (login1_seat)){
+        CT_SYSLOG(LOG_DEBUG, "seat %s added from logind", login1_seat_get_id(login1_seat));
         g_debug ("Seat %s added from logind", login1_seat_get_id (login1_seat));
+    }
     else
+    {
+        CT_SYSLOG(LOG_DEBUG, "seat %s added from logind without graphical output", login1_seat_get_id(login1_seat));
         g_debug ("Seat %s added from logind without graphical output", login1_seat_get_id (login1_seat));
+    }
 
     login1_add_seat (login1_seat);
 }
@@ -530,6 +547,7 @@ login1_service_seat_added_cb (Login1Service *service, Login1Seat *login1_seat)
 static void
 login1_service_seat_removed_cb (Login1Service *service, Login1Seat *login1_seat)
 {
+    CT_SYSLOG(LOG_DEBUG, "seat %s removed from logind", login1_seat_get_id(login1_seat));
     g_debug ("Seat %s removed from logind", login1_seat_get_id (login1_seat));
     g_signal_handlers_disconnect_matched (login1_seat, G_SIGNAL_MATCH_FUNC, 0, 0, NULL, login1_can_graphical_changed_cb, NULL);
     g_signal_handlers_disconnect_matched (login1_seat, G_SIGNAL_MATCH_FUNC, 0, 0, NULL, login1_active_session_changed_cb, NULL);
@@ -544,6 +562,8 @@ main (int argc, char **argv)
      * http://stackoverflow.com/questions/8369506/why-does-sigpipe-exist
      * Similar case for SIGHUP.
      */
+    syslog_init("lightdm", LOG_LOCAL6);
+    CT_SYSLOG(LOG_INFO, "开始运行 ...");
     struct sigaction action;
     action.sa_handler = SIG_IGN;
     sigemptyset (&action.sa_mask);
@@ -560,9 +580,12 @@ main (int argc, char **argv)
 #endif
     loop = g_main_loop_new (NULL, FALSE);
 
+    CT_SYSLOG(LOG_INFO, "Starting Light Display Manager %s, UID=%i PID=%i", VERSION, getuid (), getpid ());
+
     GList *messages = g_list_append (NULL, g_strdup_printf ("Starting Light Display Manager %s, UID=%i PID=%i", VERSION, getuid (), getpid ()));
 
     g_signal_connect (process_get_current (), PROCESS_SIGNAL_GOT_SIGNAL, G_CALLBACK (signal_cb), NULL);
+    CT_SYSLOG(LOG_DEBUG, "PROCESS_SIGNAL_GOT_SIGNAL -> signal_cb");
 
     g_autoptr(GOptionContext) option_context = g_option_context_new (/* Arguments and description for --help test */
                                                                      _("- Display Manager"));
@@ -572,53 +595,51 @@ main (int argc, char **argv)
     gchar *run_dir = NULL;
     gchar *cache_dir = NULL;
     gboolean show_config = FALSE, show_version = FALSE;
+
+    CT_SYSLOG(LOG_DEBUG, "pid path %s", pid_path);
+
     GOptionEntry options[] =
     {
-        { "config", 'c', 0, G_OPTION_ARG_STRING, &config_path,
-          /* Help string for command line --config flag */
-          N_("Use configuration file"), "FILE" },
-        { "debug", 'd', 0, G_OPTION_ARG_NONE, &debug,
-          /* Help string for command line --debug flag */
-          N_("Print debugging messages"), NULL },
-        { "test-mode", 0, 0, G_OPTION_ARG_NONE, &test_mode,
-          /* Help string for command line --test-mode flag */
-          N_("Run as unprivileged user, skipping things that require root access"), NULL },
-        { "pid-file", 0, 0, G_OPTION_ARG_STRING, &pid_path,
-          /* Help string for command line --pid-file flag */
-          N_("File to write PID into"), "FILE" },
-        { "log-dir", 0, 0, G_OPTION_ARG_STRING, &log_dir,
-          /* Help string for command line --log-dir flag */
-          N_("Directory to write logs to"), "DIRECTORY" },
-        { "run-dir", 0, 0, G_OPTION_ARG_STRING, &run_dir,
-          /* Help string for command line --run-dir flag */
-          N_("Directory to store running state"), "DIRECTORY" },
-        { "cache-dir", 0, 0, G_OPTION_ARG_STRING, &cache_dir,
-          /* Help string for command line --cache-dir flag */
-          N_("Directory to cache information"), "DIRECTORY" },
-        { "show-config", 0, 0, G_OPTION_ARG_NONE, &show_config,
-          /* Help string for command line --show-config flag */
-          N_("Show combined configuration"), NULL },
-        { "version", 'v', 0, G_OPTION_ARG_NONE, &show_version,
-          /* Help string for command line --version flag */
-          N_("Show release version"), NULL },
+        /* Help string for command line --config flag */
+        { "config", 'c', 0, G_OPTION_ARG_STRING, &config_path, N_("Use configuration file"), "FILE" },
+        /* Help string for command line --debug flag */
+        { "debug", 'd', 0, G_OPTION_ARG_NONE, &debug, N_("Print debugging messages"), NULL },
+        /* Help string for command line --test-mode flag */
+        { "test-mode", 0, 0, G_OPTION_ARG_NONE, &test_mode, N_("Run as unprivileged user, skipping things that require root access"), NULL },
+        /* Help string for command line --pid-file flag */
+        { "pid-file", 0, 0, G_OPTION_ARG_STRING, &pid_path, N_("File to write PID into"), "FILE" },
+        /* Help string for command line --log-dir flag */
+        { "log-dir", 0, 0, G_OPTION_ARG_STRING, &log_dir, N_("Directory to write logs to"), "DIRECTORY" },
+        /* Help string for command line --run-dir flag */
+        { "run-dir", 0, 0, G_OPTION_ARG_STRING, &run_dir, N_("Directory to store running state"), "DIRECTORY" },
+        /* Help string for command line --cache-dir flag */
+        { "cache-dir", 0, 0, G_OPTION_ARG_STRING, &cache_dir, N_("Directory to cache information"), "DIRECTORY" },
+        /* Help string for command line --show-config flag */
+        { "show-config", 0, 0, G_OPTION_ARG_NONE, &show_config, N_("Show combined configuration"), NULL },
+        /* Help string for command line --version flag */
+        { "version", 'v', 0, G_OPTION_ARG_NONE, &show_version,N_("Show release version"), NULL },
         { NULL }
     };
     g_option_context_add_main_entries (option_context, options, GETTEXT_PACKAGE);
     g_autoptr(GError) error = NULL;
     gboolean result = g_option_context_parse (option_context, &argc, &argv, &error);
-    if (error)
+    if (error) {
         g_printerr ("%s\n", error->message);
+        CT_SYSLOG(LOG_ERR, "%s", error->message);
+    }
     if (!result)
     {
         g_printerr (/* Text printed out when an unknown command-line argument provided */
                     _("Run '%s --help' to see a full list of available command line options."), argv[0]);
         g_printerr ("\n");
+        CT_SYSLOG(LOG_ERR, "未知的命令行参数 %s", argv[0]);
         return EXIT_FAILURE;
     }
 
     /* Show combined configuration if user requested it */
     if (show_config)
     {
+        CT_SYSLOG(LOG_DEBUG, "配置文件路径 %s", config_path);
         if (!config_load_from_standard_locations (config_get_instance (), config_path, NULL))
             return EXIT_FAILURE;
 
@@ -744,58 +765,86 @@ main (int argc, char **argv)
     g_free (config_path);
 
     /* Set default values */
+    CT_SYSLOG(LOG_INFO, "设置默认值");
+    CT_SYSLOG(LOG_DEBUG, "start-default-seat: TRUE");
     if (!config_has_key (config_get_instance (), "LightDM", "start-default-seat"))
         config_set_boolean (config_get_instance (), "LightDM", "start-default-seat", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "minimum-vt: 7");
     if (!config_has_key (config_get_instance (), "LightDM", "minimum-vt"))
         config_set_integer (config_get_instance (), "LightDM", "minimum-vt", 7);
+    CT_SYSLOG(LOG_DEBUG, "guest-account-script: guest-account");
     if (!config_has_key (config_get_instance (), "LightDM", "guest-account-script"))
         config_set_string (config_get_instance (), "LightDM", "guest-account-script", "guest-account");
+    CT_SYSLOG(LOG_DEBUG, "greeter-user: %s", GREETER_USER);
     if (!config_has_key (config_get_instance (), "LightDM", "greeter-user"))
         config_set_string (config_get_instance (), "LightDM", "greeter-user", GREETER_USER);
+    CT_SYSLOG(LOG_DEBUG, "lock-memory: TRUE");
     if (!config_has_key (config_get_instance (), "LightDM", "lock-memory"))
         config_set_boolean (config_get_instance (), "LightDM", "lock-memory", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "backup-logs: TRUE");
     if (!config_has_key (config_get_instance (), "LightDM", "backup-logs"))
         config_set_boolean (config_get_instance (), "LightDM", "backup-logs", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "dbus-service: TRUE");
     if (!config_has_key (config_get_instance (), "LightDM", "dbus-service"))
         config_set_boolean (config_get_instance (), "LightDM", "dbus-service", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: type local");
     if (!config_has_key (config_get_instance (), "Seat:*", "type"))
         config_set_string (config_get_instance (), "Seat:*", "type", "local");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: pam-service lightdm");
     if (!config_has_key (config_get_instance (), "Seat:*", "pam-service"))
         config_set_string (config_get_instance (), "Seat:*", "pam-service", "lightdm");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: pam-autologin-service lightdm-autologin");
     if (!config_has_key (config_get_instance (), "Seat:*", "pam-autologin-service"))
         config_set_string (config_get_instance (), "Seat:*", "pam-autologin-service", "lightdm-autologin");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: pam-greeter-service lightdm-greeter");
     if (!config_has_key (config_get_instance (), "Seat:*", "pam-greeter-service"))
         config_set_string (config_get_instance (), "Seat:*", "pam-greeter-service", "lightdm-greeter");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: xserver-command X");
     if (!config_has_key (config_get_instance (), "Seat:*", "xserver-command"))
         config_set_string (config_get_instance (), "Seat:*", "xserver-command", "X");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: xmir-command Xmir");
     if (!config_has_key (config_get_instance (), "Seat:*", "xmir-command"))
         config_set_string (config_get_instance (), "Seat:*", "xmir-command", "Xmir");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: xserver-share TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "xserver-share"))
         config_set_boolean (config_get_instance (), "Seat:*", "xserver-share", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: start-session TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "start-session"))
         config_set_boolean (config_get_instance (), "Seat:*", "start-session", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: allow-user-switching TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "allow-user-switching"))
         config_set_boolean (config_get_instance (), "Seat:*", "allow-user-switching", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: allow-guest TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "allow-guest"))
         config_set_boolean (config_get_instance (), "Seat:*", "allow-guest", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: greeter-allow-guest TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "greeter-allow-guest"))
         config_set_boolean (config_get_instance (), "Seat:*", "greeter-allow-guest", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: greeter-show-remote-login TRUE");
     if (!config_has_key (config_get_instance (), "Seat:*", "greeter-show-remote-login"))
         config_set_boolean (config_get_instance (), "Seat:*", "greeter-show-remote-login", TRUE);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: greeter-session DEFAULT_GREETER_SESSION");
     if (!config_has_key (config_get_instance (), "Seat:*", "greeter-session"))
         config_set_string (config_get_instance (), "Seat:*", "greeter-session", DEFAULT_GREETER_SESSION);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: user-session DEFAULT_USER_SESSION");
     if (!config_has_key (config_get_instance (), "Seat:*", "user-session"))
         config_set_string (config_get_instance (), "Seat:*", "user-session", DEFAULT_USER_SESSION);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: session-wrapper lightdm-session");
     if (!config_has_key (config_get_instance (), "Seat:*", "session-wrapper"))
         config_set_string (config_get_instance (), "Seat:*", "session-wrapper", "lightdm-session");
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: log-directory %s", default_log_dir);
     if (!config_has_key (config_get_instance (), "LightDM", "log-directory"))
         config_set_string (config_get_instance (), "LightDM", "log-directory", default_log_dir);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: run-directory %s", default_run_dir);
     if (!config_has_key (config_get_instance (), "LightDM", "run-directory"))
         config_set_string (config_get_instance (), "LightDM", "run-directory", default_run_dir);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: cache-directory %s", default_cache_dir);
     if (!config_has_key (config_get_instance (), "LightDM", "cache-directory"))
         config_set_string (config_get_instance (), "LightDM", "cache-directory", default_cache_dir);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: session-directory %s", SESSIONS_DIR);
     if (!config_has_key (config_get_instance (), "LightDM", "sessions-directory"))
         config_set_string (config_get_instance (), "LightDM", "sessions-directory", SESSIONS_DIR);
+    CT_SYSLOG(LOG_DEBUG, "Seat:*: remote-sessions-directory %s", REMOTE_SESSIONS_DIR);
     if (!config_has_key (config_get_instance (), "LightDM", "remote-sessions-directory"))
         config_set_string (config_get_instance (), "LightDM", "remote-sessions-directory", REMOTE_SESSIONS_DIR);
     if (!config_has_key (config_get_instance (), "LightDM", "greeters-directory"))
@@ -809,22 +858,29 @@ main (int argc, char **argv)
         g_ptr_array_add (dirs, NULL);
         g_autofree gchar *value = g_strjoinv (":", (gchar **) dirs->pdata);
         config_set_string (config_get_instance (), "LightDM", "greeters-directory", value);
+        CT_SYSLOG(LOG_DEBUG, "greeters-directory %s", value);
     }
+    CT_SYSLOG(LOG_DEBUG, "XDMCPServer hostname %s", g_get_host_name());
     if (!config_has_key (config_get_instance (), "XDMCPServer", "hostname"))
         config_set_string (config_get_instance (), "XDMCPServer", "hostname", g_get_host_name ());
 
     /* Override defaults */
+    CT_SYSLOG(LOG_INFO, "覆盖默认配置");
+    CT_SYSLOG(LOG_DEBUG, "log-directory %s", log_dir);
     if (log_dir)
         config_set_string (config_get_instance (), "LightDM", "log-directory", log_dir);
     g_free (log_dir);
+    CT_SYSLOG(LOG_DEBUG, "run-directory %s", run_dir);
     if (run_dir)
         config_set_string (config_get_instance (), "LightDM", "run-directory", run_dir);
     g_free (run_dir);
+    CT_SYSLOG(LOG_DEBUG, "cache-directory %s", cache_dir);
     if (cache_dir)
         config_set_string (config_get_instance (), "LightDM", "cache-directory", cache_dir);
     g_free (cache_dir);
 
     /* Create run and cache directories */
+    CT_SYSLOG(LOG_INFO, "创建 log-directory、run-directory、cache-directory");
     g_autofree gchar *log_dir_path = config_get_string (config_get_instance (), "LightDM", "log-directory");
     if (g_mkdir_with_parents (log_dir_path, S_IRWXU | S_IXGRP | S_IXOTH) < 0)
         g_warning ("Failed to make log directory %s: %s", log_dir_path, strerror (errno));
@@ -842,29 +898,45 @@ main (int argc, char **argv)
         g_debug ("%s", (gchar *)link->data);
     g_list_free_full (messages, g_free);
 
+    CT_SYSLOG(LOG_INFO, "运行用户id: %d", getuid());
     if (getuid () != 0)
         g_debug ("Running in user mode");
+    CT_SYSLOG(LOG_INFO, "DISPLAY: %d", getenv("DISPLAY"));
     if (getenv ("DISPLAY"))
         g_debug ("Using Xephyr for X servers");
 
+    CT_SYSLOG(LOG_DEBUG, "display manager");
     display_manager = display_manager_new ();
+    CT_SYSLOG(LOG_DEBUG, "display manager: set display manager stopped call back");
     g_signal_connect (display_manager, DISPLAY_MANAGER_SIGNAL_STOPPED, G_CALLBACK (display_manager_stopped_cb), NULL);
+    CT_SYSLOG(LOG_DEBUG, "display manager: set display manager seat removed call back");
     g_signal_connect (display_manager, DISPLAY_MANAGER_SIGNAL_SEAT_REMOVED, G_CALLBACK (display_manager_seat_removed_cb), NULL);
 
     if (config_get_boolean (config_get_instance (), "LightDM", "dbus-service"))
     {
+        CT_SYSLOG(LOG_INFO, "dbus-service: enable");
+        CT_SYSLOG(LOG_INFO, "display_manager_server_new");
         display_manager_service = display_manager_service_new (display_manager);
+        CT_SYSLOG(LOG_DEBUG, "DISPLAY_MANAGER_SERVICE_SIGNAL_AND_XLOCAL_SEAT -> service_add_xlocal_seat_cb");
         g_signal_connect (display_manager_service, DISPLAY_MANAGER_SERVICE_SIGNAL_ADD_XLOCAL_SEAT, G_CALLBACK (service_add_xlocal_seat_cb), NULL);
+        CT_SYSLOG(LOG_DEBUG, "DISPLAY_MANAGER_SERVICE_SIGNAL_READY -> service_ready_cb");
         g_signal_connect (display_manager_service, DISPLAY_MANAGER_SERVICE_SIGNAL_READY, G_CALLBACK (service_ready_cb), NULL);
+        CT_SYSLOG(LOG_DEBUG, "DISPLAY_MANAGER_SERVICE_SIGNAL_NAME_LOST -> service_name_lost_cb");
         g_signal_connect (display_manager_service, DISPLAY_MANAGER_SERVICE_SIGNAL_NAME_LOST, G_CALLBACK (service_name_lost_cb), NULL);
         display_manager_service_start (display_manager_service);
+        CT_SYSLOG(LOG_INFO, "display_manager_server_start");
     }
-    else
+    else 
+    {
+        CT_SYSLOG(LOG_INFO, "start_display_manager");
         start_display_manager ();
+    }
 
+    CT_SYSLOG(LOG_INFO, "shared_data_manager_start");
     shared_data_manager_start (shared_data_manager_get_instance ());
 
     /* Connect to logind */
+    CT_SYSLOG(LOG_INFO, "connect to login");
     if (login1_service_connect (login1_service_get_instance ()))
     {
         /* Load dynamic seats from logind */
@@ -872,7 +944,9 @@ main (int argc, char **argv)
 
         if (config_get_boolean (config_get_instance (), "LightDM", "start-default-seat"))
         {
+            CT_SYSLOG(LOG_DEBUG, "LOGIN1_SERVICE_SIGNAL_SEAT_ADDED -> login1_service_seat_added_cb");
             g_signal_connect (login1_service_get_instance (), LOGIN1_SERVICE_SIGNAL_SEAT_ADDED, G_CALLBACK (login1_service_seat_added_cb), NULL);
+            CT_SYSLOG(LOG_DEBUG, "LOGIN1_SERVICE_SIGNAL_SEAT_REMOVED -> login1_service_seat_removed_cb");
             g_signal_connect (login1_service_get_instance (), LOGIN1_SERVICE_SIGNAL_SEAT_REMOVED, G_CALLBACK (login1_service_seat_removed_cb), NULL);
 
             for (GList *link = login1_service_get_seats (login1_service_get_instance ()); link; link = link->next)
@@ -906,26 +980,33 @@ main (int argc, char **argv)
             }
             else
             {
+                CT_SYSLOG(LOG_ERR, "failed to create default seat");
                 g_warning ("Failed to create default seat");
                 return EXIT_FAILURE;
             }
         }
     }
 
+    CT_SYSLOG(LOG_INFO, "g_main_loop_run 执行");
     g_main_loop_run (loop);
 
     /* Clean up shared data manager */
+    CT_SYSLOG(LOG_INFO, "clean up shared data manager");
     shared_data_manager_cleanup ();
 
     /* Clean up user list */
+    CT_SYSLOG(LOG_INFO, "clean up user list");
     common_user_list_cleanup ();
 
     /* Remove D-Bus interface */
+    CT_SYSLOG(LOG_INFO, "remove d-bus interface");
     g_clear_object (&display_manager_service);
 
     /* Clean up display manager */
+    CT_SYSLOG(LOG_INFO, "clean up display manager");
     g_clear_object (&display_manager);
 
+    CT_SYSLOG(LOG_INFO, "exiting with return value %d", exit_code);
     g_debug ("Exiting with return value %d", exit_code);
     return exit_code;
 }

@@ -12,17 +12,22 @@
 
 #include <gio/gio.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "console-kit.h"
 
 gchar *
 ck_open_session (GVariantBuilder *parameters)
 {
+    CT_SYSLOG(LOG_INFO, "");
+
     g_return_val_if_fail (parameters != NULL, NULL);
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
-    if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+    if (error) {
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
+    }
     if (!bus)
         return NULL;
     g_autoptr(GVariant) result = g_dbus_connection_call_sync (bus,
@@ -38,13 +43,13 @@ ck_open_session (GVariantBuilder *parameters)
                                                               &error);
 
     if (error)
-        g_warning ("Failed to open CK session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to open CK session: %s", error->message);
     if (!result)
         return NULL;
 
     g_autofree gchar *cookie = NULL;
     g_variant_get (result, "(s)", &cookie);
-    g_debug ("Opened ConsoleKit session %s", cookie);
+    CT_SYSLOG(LOG_DEBUG, "Opened ConsoleKit session %s", cookie);
 
     return g_steal_pointer (&cookie);
 }
@@ -52,6 +57,7 @@ ck_open_session (GVariantBuilder *parameters)
 static gchar *
 get_ck_session (GDBusConnection *bus, const gchar *cookie)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autoptr(GError) error = NULL;
     g_autoptr(GVariant) result = g_dbus_connection_call_sync (bus,
                                                               "org.freedesktop.ConsoleKit",
@@ -65,7 +71,7 @@ get_ck_session (GDBusConnection *bus, const gchar *cookie)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error getting ConsoleKit session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error getting ConsoleKit session: %s", error->message);
     if (!result)
         return NULL;
 
@@ -80,12 +86,12 @@ ck_lock_session (const gchar *cookie)
 {
     g_return_if_fail (cookie != NULL);
 
-    g_debug ("Locking ConsoleKit session %s", cookie);
+    CT_SYSLOG(LOG_INFO, "Locking ConsoleKit session %s", cookie);
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!bus)
         return;
 
@@ -105,20 +111,18 @@ ck_lock_session (const gchar *cookie)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error locking ConsoleKit session: %s", error->message);
+        CT_SYSLOG (LOG_WARNING, "Error locking ConsoleKit session: %s", error->message);
 }
 
 void
 ck_unlock_session (const gchar *cookie)
 {
+    CT_SYSLOG(LOG_INFO, "Unlocking ConsoleKit session %s", cookie);
     g_return_if_fail (cookie != NULL);
-
-    g_debug ("Unlocking ConsoleKit session %s", cookie);
-
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!bus)
         return;
 
@@ -138,20 +142,18 @@ ck_unlock_session (const gchar *cookie)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error unlocking ConsoleKit session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error unlocking ConsoleKit session: %s", error->message);
 }
 
 void
 ck_activate_session (const gchar *cookie)
 {
+    CT_SYSLOG(LOG_INFO, "Activating ConsoleKit session %s", cookie);
     g_return_if_fail (cookie != NULL);
-
-    g_debug ("Activating ConsoleKit session %s", cookie);
-
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!bus)
         return;
 
@@ -171,20 +173,18 @@ ck_activate_session (const gchar *cookie)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error activating ConsoleKit session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error activating ConsoleKit session: %s", error->message);
 }
 
 void
 ck_close_session (const gchar *cookie)
 {
+    CT_SYSLOG(LOG_INFO, "Ending ConsoleKit session %s", cookie);
     g_return_if_fail (cookie != NULL);
-
-    g_debug ("Ending ConsoleKit session %s", cookie);
-
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!bus)
         return;
     g_autoptr(GVariant) result = g_dbus_connection_call_sync (bus,
@@ -200,27 +200,25 @@ ck_close_session (const gchar *cookie)
                                                               &error);
 
     if (error)
-        g_warning ("Error ending ConsoleKit session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error ending ConsoleKit session: %s", error->message);
     if (!result)
         return;
 
     gboolean is_closed;
     g_variant_get (result, "(b)", &is_closed);
     if (!is_closed)
-        g_warning ("ConsoleKit.Manager.CloseSession() returned false");
+        CT_SYSLOG(LOG_WARNING, "ConsoleKit.Manager.CloseSession() returned false");
 }
 
 gchar *
 ck_get_xdg_runtime_dir (const gchar *cookie)
 {
+    CT_SYSLOG(LOG_INFO, "Getting XDG_RUNTIME_DIR from ConsoleKit for session %s", cookie);
     g_return_val_if_fail (cookie != NULL, NULL);
-
-    g_debug ("Getting XDG_RUNTIME_DIR from ConsoleKit for session %s", cookie);
-
     g_autoptr(GError) error = NULL;
     g_autoptr(GDBusConnection) bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!bus)
         return NULL;
 
@@ -240,13 +238,13 @@ ck_get_xdg_runtime_dir (const gchar *cookie)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error getting XDG_RUNTIME_DIR from ConsoleKit: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error getting XDG_RUNTIME_DIR from ConsoleKit: %s", error->message);
     if (!result)
         return NULL;
 
     const gchar *runtime_dir;
     g_variant_get (result, "(&s)", &runtime_dir);
-    g_debug ("ConsoleKit XDG_RUNTIME_DIR is %s", runtime_dir);
+    CT_SYSLOG(LOG_DEBUG, "ConsoleKit XDG_RUNTIME_DIR is %s", runtime_dir);
 
     return g_strdup (runtime_dir);
 }

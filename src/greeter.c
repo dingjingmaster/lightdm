@@ -14,6 +14,8 @@
 #include <string.h>
 #include <gcrypt.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "greeter.h"
 #include "configuration.h"
 #include "shared-data-manager.h"
@@ -125,6 +127,7 @@ greeter_new (void)
 void
 greeter_set_file_descriptors (Greeter *greeter, int to_greeter_fd, int from_greeter_fd)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     g_return_if_fail (greeter != NULL);
@@ -136,14 +139,14 @@ greeter_set_file_descriptors (Greeter *greeter, int to_greeter_fd, int from_gree
     g_autoptr(GError) to_error = NULL;
     g_io_channel_set_encoding (priv->to_greeter_channel, NULL, &to_error);
     if (to_error)
-        g_warning ("Failed to set encoding on to greeter channel to binary: %s\n", to_error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to set encoding on to greeter channel to binary: %s\n", to_error->message);
 
     priv->from_greeter_output = from_greeter_fd;
     priv->from_greeter_channel = g_io_channel_unix_new (priv->from_greeter_output);
     g_autoptr(GError) from_error = NULL;
     g_io_channel_set_encoding (priv->from_greeter_channel, NULL, &from_error);
     if (from_error)
-        g_warning ("Failed to set encoding on from greeter channel to binary: %s\n", from_error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to set encoding on from greeter channel to binary: %s\n", from_error->message);
     g_io_channel_set_buffered (priv->from_greeter_channel, FALSE);
 
     priv->from_greeter_watch = g_io_add_watch (priv->from_greeter_channel, G_IO_IN | G_IO_HUP, read_cb, greeter);
@@ -152,16 +155,20 @@ greeter_set_file_descriptors (Greeter *greeter, int to_greeter_fd, int from_gree
 void
 greeter_stop (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     /* Stop any events occurring after we've stopped */
-    if (priv->authentication_session)
+    if (priv->authentication_session) {
+        CT_SYSLOG(LOG_INFO, "disconnect signal G_SIGNAL_MATCH_DATA");
         g_signal_handlers_disconnect_matched (priv->authentication_session, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, greeter);
+    }
 }
 
 void
 greeter_set_pam_services (Greeter *greeter, const gchar *pam_service, const gchar *autologin_pam_service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_if_fail (greeter != NULL);
     g_free (priv->pam_service);
@@ -173,6 +180,7 @@ greeter_set_pam_services (Greeter *greeter, const gchar *pam_service, const gcha
 void
 greeter_set_allow_guest (Greeter *greeter, gboolean allow_guest)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_if_fail (greeter != NULL);
     priv->allow_guest = allow_guest;
@@ -181,6 +189,7 @@ greeter_set_allow_guest (Greeter *greeter, gboolean allow_guest)
 void
 greeter_clear_hints (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_if_fail (greeter != NULL);
     g_hash_table_remove_all (priv->hints);
@@ -189,6 +198,7 @@ greeter_clear_hints (Greeter *greeter)
 void
 greeter_set_hint (Greeter *greeter, const gchar *name, const gchar *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_if_fail (greeter != NULL);
     g_hash_table_insert (priv->hints, g_strdup (name), g_strdup (value));
@@ -197,6 +207,7 @@ greeter_set_hint (Greeter *greeter, const gchar *name, const gchar *value)
 static void *
 secure_malloc (Greeter *greeter, size_t n)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     if (priv->use_secure_memory)
         return gcry_malloc_secure (n);
@@ -207,6 +218,7 @@ secure_malloc (Greeter *greeter, size_t n)
 static void *
 secure_realloc (Greeter *greeter, void *ptr, size_t n)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     if (priv->use_secure_memory)
         return gcry_realloc (ptr, n);
@@ -217,6 +229,7 @@ secure_realloc (Greeter *greeter, void *ptr, size_t n)
 static void
 secure_free (Greeter *greeter, void *ptr)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     if (priv->use_secure_memory)
         return gcry_free (ptr);
@@ -227,6 +240,7 @@ secure_free (Greeter *greeter, void *ptr)
 static void
 secure_freev (Greeter *greeter, gchar **v)
 {
+    CT_SYSLOG(LOG_INFO, "");
     for (int i = 0; v[i]; i++)
         secure_free (greeter, v[i]);
     g_free (v);
@@ -235,6 +249,7 @@ secure_freev (Greeter *greeter, gchar **v)
 static guint32
 int_length (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return 4;
 }
 
@@ -244,6 +259,7 @@ int_length (void)
 static void
 write_message (Greeter *greeter, guint8 *message, gsize message_length)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     gchar *data = (gchar *) message;
@@ -256,7 +272,7 @@ write_message (Greeter *greeter, guint8 *message, gsize message_length)
         g_autoptr(GError) error = NULL;
         status = g_io_channel_write_chars (priv->to_greeter_channel, data, data_length, &n_written, &error);
         if (error)
-            g_warning ("Error writing to greeter: %s", error->message);
+            CT_SYSLOG(LOG_WARNING, "Error writing to greeter: %s", error->message);
         if (status != G_IO_STATUS_NORMAL)
             return;
         data_length -= n_written;
@@ -266,12 +282,13 @@ write_message (Greeter *greeter, guint8 *message, gsize message_length)
     g_autoptr(GError) error = NULL;
     g_io_channel_flush (priv->to_greeter_channel, &error);
     if (error)
-        g_warning ("Failed to flush data to greeter: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to flush data to greeter: %s", error->message);
 }
 
 static void
 write_int (guint8 *buffer, gint buffer_length, guint32 value, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (*offset + 4 >= buffer_length)
         return;
     buffer[*offset] = value >> 24;
@@ -284,6 +301,7 @@ write_int (guint8 *buffer, gint buffer_length, guint32 value, gsize *offset)
 static void
 write_string (guint8 *buffer, gint buffer_length, const gchar *value, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     gint length;
     if (value)
         length = strlen (value);
@@ -302,6 +320,7 @@ write_string (guint8 *buffer, gint buffer_length, const gchar *value, gsize *off
 static void
 write_header (guint8 *buffer, gint buffer_length, guint32 id, guint32 length, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     write_int (buffer, buffer_length, id, offset);
     write_int (buffer, buffer_length, length, offset);
 }
@@ -309,6 +328,7 @@ write_header (guint8 *buffer, gint buffer_length, guint32 id, guint32 length, gs
 static guint32
 string_length (const gchar *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (value == NULL)
         return int_length ();
     else
@@ -318,9 +338,10 @@ string_length (const gchar *value)
 static void
 handle_connect (Greeter *greeter, const gchar *version, gboolean resettable, guint32 api_version)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
-    g_debug ("Greeter connected version=%s api=%u resettable=%s", version, api_version, resettable ? "true" : "false");
+    CT_SYSLOG("Greeter connected version=%s api=%u resettable=%s", version, api_version, resettable ? "true" : "false");
 
     priv->api_version = api_version;
     priv->resettable = resettable;
@@ -366,13 +387,14 @@ handle_connect (Greeter *greeter, const gchar *version, gboolean resettable, gui
 static void
 pam_messages_cb (Session *session, Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     const struct pam_message *messages = session_get_messages (session);
     int messages_length = session_get_messages_length (session);
 
     /* Respond to d-bus query with messages */
-    g_debug ("Prompt greeter with %d message(s)", messages_length);
+    CT_SYSLOG(LOG_DEBUG, "Prompt greeter with %d message(s)", messages_length);
     guint32 size = int_length () + string_length (session_get_username (session)) + int_length ();
     for (int i = 0; i < messages_length; i++)
         size += int_length () + string_length (messages[i].msg);
@@ -408,6 +430,7 @@ pam_messages_cb (Session *session, Greeter *greeter)
 static void
 send_end_authentication (Greeter *greeter, guint32 sequence_number, const gchar *username, int result)
 {
+    CT_SYSLOG(LOG_INFO, "");
     guint8 message[MAX_MESSAGE_LENGTH];
     gsize offset = 0;
     write_header (message, MAX_MESSAGE_LENGTH, SERVER_MESSAGE_END_AUTHENTICATION, int_length () + string_length (username) + int_length (), &offset);
@@ -420,6 +443,7 @@ send_end_authentication (Greeter *greeter, guint32 sequence_number, const gchar 
 void
 greeter_idle (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     guint8 message[MAX_MESSAGE_LENGTH];
     gsize offset = 0;
     write_header (message, MAX_MESSAGE_LENGTH, SERVER_MESSAGE_IDLE, 0, &offset);
@@ -429,6 +453,7 @@ greeter_idle (Greeter *greeter)
 void
 greeter_reset (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     g_return_if_fail (greeter != NULL);
@@ -455,18 +480,19 @@ greeter_reset (Greeter *greeter)
 static void
 authentication_complete_cb (Session *session, Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
-    g_debug ("Authenticate result for user %s: %s", session_get_username (session), session_get_authentication_result_string (session));
+    CT_SYSLOG("Authenticate result for user %s: %s", session_get_username (session), session_get_authentication_result_string (session));
 
     int result = session_get_authentication_result (session);
     if (session_get_is_authenticated (session))
     {
         if (session_get_user (session))
-            g_debug ("User %s authorized", session_get_username (session));
+            CT_SYSLOG(LOG_DEBUG, "User %s authorized", session_get_username (session));
         else
         {
-            g_debug ("User %s authorized, but no account of that name exists", session_get_username (session));
+            CT_SYSLOG(LOG_DEBUG, "User %s authorized, but no account of that name exists", session_get_username (session));
             result = PAM_USER_UNKNOWN;
         }
     }
@@ -477,12 +503,14 @@ authentication_complete_cb (Session *session, Greeter *greeter)
 static void
 reset_session (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     g_free (priv->remote_session);
     priv->remote_session = NULL;
     if (priv->authentication_session)
     {
+        CT_SYSLOG(LOG_INFO, "disconned signal G_SIGNAL_MATCH_DATA");
         g_signal_handlers_disconnect_matched (priv->authentication_session, G_SIGNAL_MATCH_DATA, 0, 0, NULL, NULL, greeter);
         session_stop (priv->authentication_session);
         g_clear_object (&priv->authentication_session);
@@ -494,32 +522,38 @@ reset_session (Greeter *greeter)
 static void
 handle_authenticate (Greeter *greeter, guint32 sequence_number, const gchar *username)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (username[0] == '\0')
     {
-        g_debug ("Greeter start authentication");
+        CT_SYSLOG(LOG_DEBUG, "Greeter start authentication");
         username = NULL;
     }
     else
-        g_debug ("Greeter start authentication for %s", username);
+        CT_SYSLOG(LOG_DEBUG, "Greeter start authentication for %s", username);
 
     reset_session (greeter);
 
     if (priv->active_username)
         g_free (priv->active_username);
     priv->active_username = g_strdup (username);
+    CT_SYSLOG(LOG_INFO, "notify: GREETER_PROPERTY_ACTIVE_USERNAME");
     g_object_notify (G_OBJECT (greeter), GREETER_PROPERTY_ACTIVE_USERNAME);
 
     priv->authentication_sequence_number = sequence_number;
+    CT_SYSLOG(LOG_INFO, "signal emit CREATE_SESSION");
     g_signal_emit (greeter, signals[CREATE_SESSION], 0, &priv->authentication_session);
     if (!priv->authentication_session)
     {
         send_end_authentication (greeter, sequence_number, "", PAM_USER_UNKNOWN);
+        CT_SYSLOG(LOG_INFO, "send_end_authentication");
         return;
     }
 
+    CT_SYSLOG(LOG_INFO, "connect signal SESSION_SIGNAL_GOT_MESSAGE -> pam_message_cb");
     g_signal_connect (G_OBJECT (priv->authentication_session), SESSION_SIGNAL_GOT_MESSAGES, G_CALLBACK (pam_messages_cb), greeter);
+    CT_SYSLOG(LOG_INFO, "connect signal SESSION_SIGNAL_AUTHENTICATION -> authentication_complete_cb");
     g_signal_connect (G_OBJECT (priv->authentication_session), SESSION_SIGNAL_AUTHENTICATION_COMPLETE, G_CALLBACK (authentication_complete_cb), greeter);
 
     /* Use non-interactive service for autologin user */
@@ -538,25 +572,32 @@ handle_authenticate (Greeter *greeter, guint32 sequence_number, const gchar *use
     }
 
     /* Run the session process */
+    CT_SYSLOG(LOG_INFO, "run session process");
+    CT_SYSLOG(LOG_INFO, "session_set_pam_service");
     session_set_pam_service (priv->authentication_session, service);
+    CT_SYSLOG(LOG_INFO, "session_set_username");
     session_set_username (priv->authentication_session, username);
+    CT_SYSLOG(LOG_INFO, "session_set_do_authenticate");
     session_set_do_authenticate (priv->authentication_session, TRUE);
+    CT_SYSLOG(LOG_INFO, "session_set_is_interactive");
     session_set_is_interactive (priv->authentication_session, is_interactive);
+    CT_SYSLOG(LOG_INFO, "session_start");
     session_start (priv->authentication_session);
 }
 
 static void
 handle_authenticate_as_guest (Greeter *greeter, guint32 sequence_number)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
-    g_debug ("Greeter start authentication for guest account");
+    CT_SYSLOG(LOG_DEBUG, "Greeter start authentication for guest account");
 
     reset_session (greeter);
 
     if (!priv->allow_guest)
     {
-        g_debug ("Guest account is disabled");
+        CT_SYSLOG(LOG_DEBUG, "Guest account is disabled");
         send_end_authentication (greeter, sequence_number, "", PAM_USER_UNKNOWN);
         return;
     }
@@ -568,6 +609,7 @@ handle_authenticate_as_guest (Greeter *greeter, guint32 sequence_number)
 static gchar *
 get_remote_session_service (const gchar *session_name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* Validate session name doesn't contain directory separators */
     for (const gchar *c = session_name; *c; c++)
     {
@@ -583,7 +625,7 @@ get_remote_session_service (const gchar *session_name)
     g_autoptr(GError) error = NULL;
     gboolean result = g_key_file_load_from_file (session_desktop_file, path, G_KEY_FILE_NONE, &error);
     if (error)
-        g_debug ("Failed to load session file %s: %s", path, error->message);
+        CT_SYSLOG(LOG_DEBUG, "Failed to load session file %s: %s", path, error->message);
     if (!result)
         return NULL;
 
@@ -593,44 +635,57 @@ get_remote_session_service (const gchar *session_name)
 static void
 handle_authenticate_remote (Greeter *greeter, const gchar *session_name, const gchar *username, guint32 sequence_number)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (username[0] == '\0')
     {
-        g_debug ("Greeter start authentication for remote session %s", session_name);
+        CT_SYSLOG(LOG_DEBUG, "Greeter start authentication for remote session %s", session_name);
         username = NULL;
     }
     else
-        g_debug ("Greeter start authentication for remote session %s as user %s", session_name, username);
+        CT_SYSLOG(LOG_DEBUG, "Greeter start authentication for remote session %s as user %s", session_name, username);
 
     reset_session (greeter);
 
     g_autofree gchar *service = get_remote_session_service (session_name);
     if (!service)
     {
+        CT_SYSLOG(LOG_INFO, "send end authentication PAM_SYSTEM_ERR");
         send_end_authentication (greeter, sequence_number, "", PAM_SYSTEM_ERR);
         return;
     }
 
     priv->authentication_sequence_number = sequence_number;
     priv->remote_session = g_strdup (session_name);
+    CT_SYSLOG(LOG_INFO, "signal emit CREATE_SESSION");
     g_signal_emit (greeter, signals[CREATE_SESSION], 0, &priv->authentication_session);
     if (priv->authentication_session)
     {
+        CT_SYSLOG(LOG_INFO, "connect SESSION_SIGNAL_GOT_MESSAGES -> pam_messages_cb");
         g_signal_connect (G_OBJECT (priv->authentication_session), SESSION_SIGNAL_GOT_MESSAGES, G_CALLBACK (pam_messages_cb), greeter);
+        CT_SYSLOG(LOG_INFO, "connect SESSION_SIGNAL_AUTHENTICATION_COMPLETE -> authentication_complete_cb");
         g_signal_connect (G_OBJECT (priv->authentication_session), SESSION_SIGNAL_AUTHENTICATION_COMPLETE, G_CALLBACK (authentication_complete_cb), greeter);
 
         /* Run the session process */
+        CT_SYSLOG(LOG_INFO, "session process");
+        CT_SYSLOG(LOG_DEBUG, "session pam serice");
         session_set_pam_service (priv->authentication_session, service);
+        CT_SYSLOG(LOG_DEBUG, "session username");
         session_set_username (priv->authentication_session, username);
+        CT_SYSLOG(LOG_DEBUG, "session do authenticate");
         session_set_do_authenticate (priv->authentication_session, TRUE);
+        CT_SYSLOG(LOG_DEBUG, "session interactive");
         session_set_is_interactive (priv->authentication_session, TRUE);
+        CT_SYSLOG(LOG_DEBUG, "session is guest");
         session_set_is_guest (priv->authentication_session, TRUE);
+        CT_SYSLOG(LOG_DEBUG, "session start");
         session_start (priv->authentication_session);
     }
 
     if (!priv->authentication_session)
     {
+        CT_SYSLOG(LOG_INFO, "send end authentication PAM_USER_UNKNOW");
         send_end_authentication (greeter, sequence_number, "", PAM_USER_UNKNOWN);
         return;
     }
@@ -639,6 +694,7 @@ handle_authenticate_remote (Greeter *greeter, const gchar *session_name, const g
 static void
 handle_continue_authentication (Greeter *greeter, gchar **secrets)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     /* Not in authentication */
@@ -658,11 +714,12 @@ handle_continue_authentication (Greeter *greeter, gchar **secrets)
     }
     if (g_strv_length (secrets) != n_prompts)
     {
+        CT_SYSLOG(LOG_INFO, "session response error PAM_CONV_ERR");
         session_respond_error (priv->authentication_session, PAM_CONV_ERR);
         return;
     }
 
-    g_debug ("Continue authentication");
+    CT_SYSLOG(LOG_DEBUG, "Continue authentication");
 
     /* Build response */
     struct pam_response *response = calloc (messages_length, sizeof (struct pam_response));
@@ -688,19 +745,21 @@ handle_continue_authentication (Greeter *greeter, gchar **secrets)
 static void
 handle_cancel_authentication (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     /* Not in authentication */
     if (priv->authentication_session == NULL)
         return;
 
-    g_debug ("Cancel authentication");
+    CT_SYSLOG(LOG_DEBUG, "Cancel authentication");
     reset_session (greeter);
 }
 
 static void
 handle_start_session (Greeter *greeter, const gchar *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (strcmp (session, "") == 0)
@@ -718,15 +777,16 @@ handle_start_session (Greeter *greeter, const gchar *session)
     if (priv->guest_account_authenticated || session_get_is_authenticated (priv->authentication_session))
     {
         if (session)
-            g_debug ("Greeter requests session %s", session);
+            CT_SYSLOG(LOG_DEBUG, "Greeter requests session %s", session);
         else
-            g_debug ("Greeter requests default session");
+            CT_SYSLOG(LOG_DEBUG, "Greeter requests default session");
         priv->start_session = TRUE;
         g_signal_emit (greeter, signals[START_SESSION], 0, session_type, session, &result);
+        CT_SYSLOG(LOG_INFO, "signal emit START_SESSION");
     }
     else
     {
-        g_debug ("Ignoring start session request, user is not authorized");
+        CT_SYSLOG(LOG_DEBUG, "Ignoring start session request, user is not authorized");
         result = FALSE;
     }
 
@@ -740,22 +800,23 @@ handle_start_session (Greeter *greeter, const gchar *session)
 static void
 handle_set_language (Greeter *greeter, const gchar *language)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (!priv->guest_account_authenticated && !session_get_is_authenticated (priv->authentication_session))
     {
-        g_debug ("Ignoring set language request, user is not authorized");
+        CT_SYSLOG(LOG_DEBUG, "Ignoring set language request, user is not authorized");
         return;
     }
 
     // FIXME: Could use this
     if (priv->guest_account_authenticated)
     {
-        g_debug ("Ignoring set language request for guest user");
+        CT_SYSLOG(LOG_DEBUG, "Ignoring set language request for guest user");
         return;
     }
 
-    g_debug ("Greeter sets language %s", language);
+    CT_SYSLOG(LOG_DEBUG, "Greeter sets language %s", language);
     User *user = session_get_user (priv->authentication_session);
     user_set_language (user, language);
 }
@@ -763,7 +824,8 @@ handle_set_language (Greeter *greeter, const gchar *language)
 static void
 handle_ensure_shared_dir (Greeter *greeter, const gchar *username)
 {
-    g_debug ("Greeter requests data directory for user %s", username);
+    CT_SYSLOG(LOG_INFO, "");
+    CT_SYSLOG(LOG_DEBUG, "Greeter requests data directory for user %s", username);
 
     g_autofree gchar *dir = shared_data_manager_ensure_user_dir (shared_data_manager_get_instance (), username);
 
@@ -777,11 +839,12 @@ handle_ensure_shared_dir (Greeter *greeter, const gchar *username)
 static guint32
 read_int (Greeter *greeter, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (priv->n_read - *offset < sizeof (guint32))
     {
-        g_warning ("Not enough space for int, need %zu, got %zu", sizeof (guint32), priv->n_read - *offset);
+        CT_SYSLOG(LOG_WARNING, "Not enough space for int, need %zu, got %zu", sizeof (guint32), priv->n_read - *offset);
         return 0;
     }
     guint8 *buffer = priv->read_buffer + *offset;
@@ -793,6 +856,7 @@ read_int (Greeter *greeter, gsize *offset)
 static int
 get_message_length (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     gsize offset;
     int payload_length;
 
@@ -801,7 +865,7 @@ get_message_length (Greeter *greeter)
 
     if (HEADER_SIZE + payload_length < HEADER_SIZE)
     {
-        g_warning ("Payload length of %u octets too long", payload_length);
+        CT_SYSLOG(LOG_ARNING, "Payload length of %u octets too long", payload_length);
         return HEADER_SIZE;
     }
 
@@ -811,12 +875,13 @@ get_message_length (Greeter *greeter)
 static gchar *
 read_string_full (Greeter *greeter, gsize *offset, void* (*alloc_fn)(size_t n))
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     guint32 length = read_int (greeter, offset);
     if (priv->n_read - *offset < length)
     {
-        g_warning ("Not enough space for string, need %u, got %zu", length, priv->n_read - *offset);
+        CT_SYSLOG(LOG_WARNING, "Not enough space for string, need %u, got %zu", length, priv->n_read - *offset);
         return g_strdup ("");
     }
 
@@ -831,12 +896,14 @@ read_string_full (Greeter *greeter, gsize *offset, void* (*alloc_fn)(size_t n))
 static gchar *
 read_string (Greeter *greeter, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return read_string_full (greeter, offset, g_malloc);
 }
 
 static gchar *
 read_secret (Greeter *greeter, gsize *offset)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     if (priv->use_secure_memory)
         return read_string_full (greeter, offset, gcry_malloc_secure);
@@ -847,14 +914,16 @@ read_secret (Greeter *greeter, gsize *offset)
 static gboolean
 read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Greeter *greeter = data;
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     if (condition == G_IO_HUP)
     {
-        g_debug ("Greeter closed communication channel");
+        CT_SYSLOG(LOG_DEBUG, "Greeter closed communication channel");
         priv->from_greeter_watch = 0;
         g_signal_emit (greeter, signals[DISCONNECTED], 0);
+        CT_SYSLOG(LOG_INFO, "signal emit DISCONNECTED");
         return FALSE;
     }
 
@@ -876,13 +945,15 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
                                                 n_to_read - priv->n_read,
                                                 &n_read,
                                                 &error);
-    if (error)
-        g_warning ("Error reading from greeter: %s", error->message);
+    if (error) {
+        CT_SYSLOG("Error reading from greeter: %s", error->message);
+    }
     if (status == G_IO_STATUS_EOF)
     {
-        g_debug ("Greeter closed communication channel");
+        CT_SYSLOG(LOG_DEBUG, "Greeter closed communication channel");
         priv->from_greeter_watch = 0;
         g_signal_emit (greeter, signals[DISCONNECTED], 0);
+        CT_SYSLOG(LOG_INFO, "emit DISCONNECTED");
         return FALSE;
     }
     else if (status != G_IO_STATUS_NORMAL)
@@ -911,6 +982,7 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
     {
     case GREETER_MESSAGE_CONNECT:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_CONNECT");
             g_autofree gchar *version = read_string (greeter, &offset);
             gboolean resettable = FALSE;
             if (offset < length)
@@ -923,6 +995,7 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
         break;
     case GREETER_MESSAGE_AUTHENTICATE:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_AUTHENTICATE");
             guint32 sequence_number = read_int (greeter, &offset);
             g_autofree gchar *username = read_string (greeter, &offset);
             handle_authenticate (greeter, sequence_number, username);
@@ -930,12 +1003,14 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
         break;
     case GREETER_MESSAGE_AUTHENTICATE_AS_GUEST:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_AUTHENTICATE_AS_GUEST");
             guint32 sequence_number = read_int (greeter, &offset);
             handle_authenticate_as_guest (greeter, sequence_number);
         }
         break;
     case GREETER_MESSAGE_AUTHENTICATE_REMOTE:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_AUTHENTICATE_REMOTE");
             guint32 sequence_number = read_int (greeter, &offset);
             g_autofree gchar *session_name = read_string (greeter, &offset);
             g_autofree gchar *username = read_string (greeter, &offset);
@@ -944,6 +1019,7 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
         break;
     case GREETER_MESSAGE_CONTINUE_AUTHENTICATION:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_CONTINUE_AUTHENTICATE");
             guint32 n_secrets = read_int (greeter, &offset);
             guint32 max_secrets = (G_MAXUINT32 - 1) / sizeof (gchar *);
             if (n_secrets > max_secrets)
@@ -962,28 +1038,32 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
         }
         break;
     case GREETER_MESSAGE_CANCEL_AUTHENTICATION:
+        CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_CANCEL_AUTHENTICATE");
         handle_cancel_authentication (greeter);
         break;
     case GREETER_MESSAGE_START_SESSION:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_START_SESSION");
             g_autofree gchar *session_name = read_string (greeter, &offset);
             handle_start_session (greeter, session_name);
         }
         break;
     case GREETER_MESSAGE_SET_LANGUAGE:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_SET_LANGUAGE");
             g_autofree gchar *language = read_string (greeter, &offset);
             handle_set_language (greeter, language);
         }
         break;
     case GREETER_MESSAGE_ENSURE_SHARED_DIR:
         {
+            CT_SYSLOG(LOG_INFO, "GREETER_MESSAGE_ENSURE_SHARED_DIR");
             g_autofree gchar *username = read_string (greeter, &offset);
             handle_ensure_shared_dir (greeter, username);
         }
         break;
     default:
-        g_warning ("Unknown message from greeter: %d", id);
+        CT_SYSLOG(LOG_WARNING, "Unknown message from greeter: %d", id);
         break;
     }
 
@@ -995,6 +1075,7 @@ read_cb (GIOChannel *source, GIOCondition condition, gpointer data)
 gboolean
 greeter_get_guest_authenticated (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_val_if_fail (greeter != NULL, FALSE);
     return priv->guest_account_authenticated;
@@ -1003,6 +1084,7 @@ greeter_get_guest_authenticated (Greeter *greeter)
 Session *
 greeter_take_authentication_session (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     g_return_val_if_fail (greeter != NULL, NULL);
@@ -1018,6 +1100,7 @@ greeter_take_authentication_session (Greeter *greeter)
 gboolean
 greeter_get_resettable (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_val_if_fail (greeter != NULL, FALSE);
     return priv->resettable;
@@ -1026,6 +1109,7 @@ greeter_get_resettable (Greeter *greeter)
 gboolean
 greeter_get_start_session (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_val_if_fail (greeter != NULL, FALSE);
     return priv->start_session;
@@ -1034,6 +1118,7 @@ greeter_get_start_session (Greeter *greeter)
 const gchar *
 greeter_get_active_username (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
     g_return_val_if_fail (greeter != NULL, NULL);
     return priv->active_username;
@@ -1042,18 +1127,21 @@ greeter_get_active_username (Greeter *greeter)
 static Session *
 greeter_real_create_session (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return NULL;
 }
 
 static gboolean
 greeter_real_start_session (Greeter *greeter, SessionType type, const gchar *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return FALSE;
 }
 
 static void
 greeter_init (Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterPrivate *priv = greeter_get_instance_private (greeter);
 
     priv->read_buffer = secure_malloc (greeter, HEADER_SIZE);
@@ -1066,6 +1154,7 @@ greeter_init (Greeter *greeter)
 static void
 greeter_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Greeter *self = GREETER (object);
     GreeterPrivate *priv = greeter_get_instance_private (self);
 
@@ -1098,6 +1187,7 @@ greeter_set_property (GObject      *object,
                       const GValue *value,
                       GParamSpec   *pspec)
 {
+    CT_SYSLOG(LOG_INFO, "");
     G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 }
 
@@ -1107,13 +1197,16 @@ greeter_get_property (GObject    *object,
                       GValue     *value,
                       GParamSpec *pspec)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Greeter *greeter = GREETER (object);
 
     switch (prop_id) {
     case PROP_ACTIVE_USERNAME:
+        CT_SYSLOG(LOG_INFO, "PROP_ACTIVE_USERNAME");
         g_value_set_string (value, greeter_get_active_username (greeter));
         break;
     default:
+        CT_SYSLOG(LOG_INFO, "WARN_INVALID_PROPERTY_ID");
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
     }
@@ -1122,6 +1215,7 @@ greeter_get_property (GObject    *object,
 static void
 greeter_class_init (GreeterClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     klass->create_session = greeter_real_create_session;

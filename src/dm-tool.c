@@ -11,6 +11,8 @@
 
 #include <config.h>
 
+#include <djctool/clib_syslog.h>
+
 #include <stdlib.h>
 #include <glib.h>
 #include <glib/gi18n.h>
@@ -25,6 +27,7 @@ static GPid xephyr_pid;
 static void
 usage (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_printerr (/* Text printed out when an unknown command-line argument provided */
                 _("Run 'dm-tool --help' to see a full list of available command line options."));
     g_printerr ("\n");
@@ -33,12 +36,14 @@ usage (void)
 static void
 xephyr_setup_cb (gpointer user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     signal (SIGUSR1, SIG_IGN);
 }
 
 static void
 xephyr_signal_cb (int signum)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autoptr(GError) error = NULL;
     g_autoptr(GVariant) result = g_dbus_proxy_call_sync (dm_proxy,
                                                          "AddLocalXSeat",
@@ -70,6 +75,7 @@ xephyr_signal_cb (int signum)
 static GDBusProxy *
 get_seat_proxy (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (seat_proxy)
         return seat_proxy;
 
@@ -100,6 +106,7 @@ get_seat_proxy (void)
 int
 main (int argc, char **argv)
 {
+    CT_SYSLOG(LOG_INFO, "");
 #if !defined(GLIB_VERSION_2_36)
     g_type_init ();
 #endif

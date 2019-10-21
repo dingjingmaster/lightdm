@@ -19,6 +19,8 @@
 #include "greeter-session.h"
 #include "session-config.h"
 
+#include <djctool/clib_syslog.h>
+
 enum {
     SESSION_ADDED,
     RUNNING_USER_SESSION,
@@ -93,6 +95,7 @@ static void start_session (Seat *seat, Session *session);
 static void
 free_seat_module (gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatModule *module = data;
     g_free (module->name);
     g_free (module);
@@ -101,10 +104,11 @@ free_seat_module (gpointer data)
 void
 seat_register_module (const gchar *name, GType type)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (!seat_modules)
         seat_modules = g_hash_table_new_full (g_str_hash, g_str_equal, free_seat_module, NULL);
 
-    g_debug ("Registered seat module %s", name);
+    CT_SYSLOG (LOG_DEBUG, "Registered seat module %s", name);
 
     SeatModule *module = g_malloc0 (sizeof (SeatModule));
     module->name = g_strdup (name);
@@ -115,6 +119,7 @@ seat_register_module (const gchar *name, GType type)
 Seat *
 seat_new (const gchar *module_name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_return_val_if_fail (module_name != NULL, NULL);
 
     SeatModule *m = NULL;
@@ -129,6 +134,7 @@ seat_new (const gchar *module_name)
 void
 seat_set_name (Seat *seat, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     g_return_if_fail (seat != NULL);
@@ -139,6 +145,7 @@ seat_set_name (Seat *seat, const gchar *name)
 void
 seat_set_property (Seat *seat, const gchar *name, const gchar *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_if_fail (seat != NULL);
     g_hash_table_insert (priv->properties, g_strdup (name), g_strdup (value));
@@ -147,6 +154,7 @@ seat_set_property (Seat *seat, const gchar *name, const gchar *value)
 const gchar *
 seat_get_string_property (Seat *seat, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return g_hash_table_lookup (priv->properties, name);
@@ -155,6 +163,7 @@ seat_get_string_property (Seat *seat, const gchar *name)
 gchar **
 seat_get_string_list_property (Seat *seat, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return g_strsplit (g_hash_table_lookup (priv->properties, name), ";", 0);
@@ -163,6 +172,7 @@ seat_get_string_list_property (Seat *seat, const gchar *name)
 gboolean
 seat_get_boolean_property (Seat *seat, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     const gchar *value = seat_get_string_property (seat, name);
     if (!value)
         return FALSE;
@@ -179,6 +189,7 @@ seat_get_boolean_property (Seat *seat, const gchar *name)
 gint
 seat_get_integer_property (Seat *seat, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     const gchar *value = seat_get_string_property (seat, name);
     return value ? atoi (value) : 0;
 }
@@ -186,6 +197,7 @@ seat_get_integer_property (Seat *seat, const gchar *name)
 const gchar *
 seat_get_name (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return priv->name;
@@ -194,6 +206,7 @@ seat_get_name (Seat *seat)
 void
 seat_set_supports_multi_session (Seat *seat, gboolean supports_multi_session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_if_fail (seat != NULL);
     priv->supports_multi_session = supports_multi_session;
@@ -202,6 +215,7 @@ seat_set_supports_multi_session (Seat *seat, gboolean supports_multi_session)
 void
 seat_set_share_display_server (Seat *seat, gboolean share_display_server)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_if_fail (seat != NULL);
     priv->share_display_server = share_display_server;
@@ -210,10 +224,12 @@ seat_set_share_display_server (Seat *seat, gboolean share_display_server)
 gboolean
 seat_start (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     g_return_val_if_fail (seat != NULL, FALSE);
 
+    CT_SYSLOG(LOG_DEBUG, "seat starting");
     l_debug (seat, "Starting");
 
     SEAT_GET_CLASS (seat)->setup (seat);
@@ -225,6 +241,7 @@ seat_start (Seat *seat)
 GList *
 seat_get_sessions (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return priv->sessions;
@@ -233,6 +250,7 @@ seat_get_sessions (Seat *seat)
 static gboolean
 set_greeter_idle (gpointer greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     greeter_idle (GREETER (greeter));
     return FALSE;
 }
@@ -240,6 +258,7 @@ set_greeter_idle (gpointer greeter)
 void
 seat_set_active_session (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     g_return_if_fail (seat != NULL);
@@ -262,6 +281,7 @@ seat_set_active_session (Seat *seat, Session *session)
                 if (priv->active_session == s)
                 {
                     l_debug (seat, "Idling greeter");
+                    CT_SYSLOG(LOG_INFO, "idling greeter");
                     /* Do this in an idle callback, because we might very well
                        be in the middle of responding to a START_SESSION
                        request by a greeter.  So they won't expect an IDLE
@@ -272,6 +292,7 @@ seat_set_active_session (Seat *seat, Session *session)
             else
             {
                 l_debug (seat, "Stopping greeter");
+                CT_SYSLOG(LOG_INFO, "Stopping greeter");
                 session_stop (s);
             }
         }
@@ -289,6 +310,7 @@ seat_set_active_session (Seat *seat, Session *session)
 Session *
 seat_get_active_session (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_return_val_if_fail (seat != NULL, NULL);
     return SEAT_GET_CLASS (seat)->get_active_session (seat);
 }
@@ -296,6 +318,7 @@ seat_get_active_session (Seat *seat)
 Session *
 seat_get_next_session (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return priv->next_session;
@@ -313,6 +336,7 @@ seat_get_next_session (Seat *seat)
 Session *
 seat_get_expected_active_session (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return priv->active_session;
@@ -329,6 +353,7 @@ seat_get_expected_active_session (Seat *seat)
 void
 seat_set_externally_activated_session (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_if_fail (seat != NULL);
     g_clear_object (&priv->active_session);
@@ -338,6 +363,7 @@ seat_set_externally_activated_session (Seat *seat, Session *session)
 Session *
 seat_find_session_by_login1_id (Seat *seat, const gchar *login1_session_id)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     for (GList *session_link = priv->sessions; session_link; session_link = session_link->next)
@@ -353,6 +379,7 @@ seat_find_session_by_login1_id (Seat *seat, const gchar *login1_session_id)
 gboolean
 seat_get_can_switch (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, FALSE);
     return seat_get_boolean_property (seat, "allow-user-switching") && priv->supports_multi_session;
@@ -361,6 +388,7 @@ seat_get_can_switch (Seat *seat)
 gboolean
 seat_get_allow_guest (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_return_val_if_fail (seat != NULL, FALSE);
     return seat_get_boolean_property (seat, "allow-guest") && guest_account_is_installed ();
 }
@@ -368,6 +396,7 @@ seat_get_allow_guest (Seat *seat)
 static gboolean
 run_script (Seat *seat, DisplayServer *display_server, const gchar *script_name, User *user)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autoptr(Process) script = process_new (NULL, NULL);
 
     process_set_command (script, script_name);
@@ -417,11 +446,13 @@ run_script (Seat *seat, DisplayServer *display_server, const gchar *script_name,
 static void
 seat_real_run_script (Seat *seat, DisplayServer *display_server, Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
 }
 
 static void
 emit_upstart_signal (const gchar *signal)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_return_if_fail (signal != NULL);
     g_return_if_fail (signal[0] != 0);
 
@@ -435,6 +466,7 @@ emit_upstart_signal (const gchar *signal)
 static void
 check_stopped (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     if (priv->stopping &&
@@ -451,6 +483,7 @@ check_stopped (Seat *seat)
 static void
 display_server_stopped_cb (DisplayServer *display_server, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     l_debug (seat, "Display server stopped");
@@ -517,6 +550,7 @@ display_server_stopped_cb (DisplayServer *display_server, Seat *seat)
 static gboolean
 can_share_display_server (Seat *seat, DisplayServer *display_server)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     return priv->share_display_server && display_server_get_can_share (display_server);
 }
@@ -524,6 +558,7 @@ can_share_display_server (Seat *seat, DisplayServer *display_server)
 static GreeterSession *
 find_greeter_session (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     for (GList *link = priv->sessions; link; link = link->next)
@@ -539,6 +574,7 @@ find_greeter_session (Seat *seat)
 static GreeterSession *
 find_resettable_greeter (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     for (GList *link = priv->sessions; link; link = link->next)
@@ -555,6 +591,7 @@ find_resettable_greeter (Seat *seat)
 static void
 set_greeter_hints (Seat *seat, Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     greeter_clear_hints (greeter);
     greeter_set_hint (greeter, "default-session", seat_get_string_property (seat, "user-session"));
     greeter_set_hint (greeter, "hide-users", seat_get_boolean_property (seat, "greeter-hide-users") ? "true" : "false");
@@ -566,6 +603,7 @@ set_greeter_hints (Seat *seat, Greeter *greeter)
 static void
 switch_to_greeter_from_failed_session (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     /* Switch to greeter if one open */
@@ -621,6 +659,7 @@ switch_to_greeter_from_failed_session (Seat *seat, Session *session)
 static void
 start_session (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* Use system location for greeter log file */
     if (IS_GREETER_SESSION (session))
     {
@@ -648,6 +687,7 @@ start_session (Seat *seat, Session *session)
 static void
 run_session (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     const gchar *script;
@@ -693,6 +733,7 @@ run_session (Seat *seat, Session *session)
 static Session *
 find_user_session (Seat *seat, const gchar *username, Session *ignore_session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     if (!username)
@@ -715,6 +756,7 @@ find_user_session (Seat *seat, const gchar *username, Session *ignore_session)
 static void
 greeter_active_username_changed_cb (Greeter *greeter, GParamSpec *pspec, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
     Session *session = find_user_session (seat, greeter_get_active_username (greeter), priv->active_session);
 
@@ -727,6 +769,7 @@ greeter_active_username_changed_cb (Greeter *greeter, GParamSpec *pspec, Seat *s
 static void
 session_authentication_complete_cb (Session *session, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (session_get_is_authenticated (session))
     {
         Session *s = find_user_session (seat, session_get_username (session), session);
@@ -757,6 +800,7 @@ session_authentication_complete_cb (Session *session, Seat *seat)
 static void
 session_stopped_cb (Session *session, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     l_debug (seat, "Session stopped");
@@ -872,6 +916,7 @@ session_stopped_cb (Session *session, Seat *seat)
 static void
 set_session_env (Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* Connect using the session bus */
     if (getuid () != 0)
     {
@@ -898,6 +943,7 @@ set_session_env (Session *session)
 static Session *
 create_session (Seat *seat, gboolean autostart)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     Session *session = SEAT_GET_CLASS (seat)->create_session (seat);
@@ -916,6 +962,7 @@ create_session (Seat *seat, gboolean autostart)
 static gchar **
 get_session_argv (Seat *seat, SessionConfig *session_config, const gchar *session_wrapper)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* If configured, run sessions through a wrapper */
     if (session_wrapper)
     {
@@ -949,6 +996,7 @@ get_session_argv (Seat *seat, SessionConfig *session_config, const gchar *sessio
 static SessionConfig *
 find_session_config (Seat *seat, const gchar *sessions_dir, const gchar *session_name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_return_val_if_fail (sessions_dir != NULL, NULL);
     g_return_val_if_fail (session_name != NULL, NULL);
 
@@ -975,6 +1023,7 @@ find_session_config (Seat *seat, const gchar *sessions_dir, const gchar *session
 static void
 configure_session (Session *session, SessionConfig *config, const gchar *session_name, const gchar *language)
 {
+    CT_SYSLOG(LOG_INFO, "");
     session_set_config (session, config);
     session_set_env (session, "XDG_SESSION_DESKTOP", session_name);
     session_set_env (session, "DESKTOP_SESSION", session_name);
@@ -995,6 +1044,7 @@ configure_session (Session *session, SessionConfig *config, const gchar *session
 static Session *
 create_user_session (Seat *seat, const gchar *username, gboolean autostart)
 {
+    CT_SYSLOG(LOG_INFO, "");
     l_debug (seat, "Creating user session");
 
     /* Load user preferences */
@@ -1038,6 +1088,7 @@ create_user_session (Seat *seat, const gchar *username, gboolean autostart)
 static void
 prepend_argv (gchar ***argv, const gchar *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     gchar **old_argv = *argv;
     gchar **new_argv = g_malloc (sizeof (gchar *) * (g_strv_length (*argv) + 2));
     new_argv[0] = g_strdup (value);
@@ -1053,6 +1104,7 @@ prepend_argv (gchar ***argv, const gchar *value)
 static Session *
 create_guest_session (Seat *seat, const gchar *session_name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (!session_name)
         session_name = seat_get_string_property (seat, "guest-session");
     if (!session_name)
@@ -1086,6 +1138,7 @@ create_guest_session (Seat *seat, const gchar *session_name)
 static Session *
 get_greeter_session (Seat *seat, Greeter *greeter)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     /* Stop any greeters */
@@ -1103,6 +1156,7 @@ get_greeter_session (Seat *seat, Greeter *greeter)
 static Session *
 greeter_create_session_cb (Greeter *greeter, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Session *greeter_session, *session;
 
     greeter_session = get_greeter_session (seat, greeter);
@@ -1116,6 +1170,7 @@ greeter_create_session_cb (Greeter *greeter, Seat *seat)
 static gboolean
 greeter_start_session_cb (Greeter *greeter, SessionType type, const gchar *session_name, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     /* Get the session to use */
@@ -1230,6 +1285,7 @@ greeter_start_session_cb (Greeter *greeter, SessionType type, const gchar *sessi
 static GreeterSession *
 create_greeter_session (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     l_debug (seat, "Creating greeter session");
@@ -1308,6 +1364,7 @@ create_greeter_session (Seat *seat)
 static Session *
 find_session_for_display_server (Seat *seat, DisplayServer *display_server)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     for (GList *link = priv->sessions; link; link = link->next)
@@ -1326,6 +1383,7 @@ find_session_for_display_server (Seat *seat, DisplayServer *display_server)
 static void
 display_server_ready_cb (DisplayServer *display_server, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* Run setup script */
     const gchar *script = seat_get_string_property (seat, "display-setup-script");
     if (script && !run_script (seat, display_server, script, NULL))
@@ -1362,6 +1420,7 @@ display_server_ready_cb (DisplayServer *display_server, Seat *seat)
 static DisplayServer *
 create_display_server (Seat *seat, Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     l_debug (seat, "Creating display server of type %s", session_get_session_type (session));
@@ -1384,6 +1443,7 @@ create_display_server (Seat *seat, Session *session)
 static gboolean
 start_display_server (Seat *seat, DisplayServer *display_server)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (display_server_get_is_ready (display_server))
     {
         display_server_ready_cb (display_server, seat);
@@ -1396,6 +1456,7 @@ start_display_server (Seat *seat, DisplayServer *display_server)
 gboolean
 seat_switch_to_greeter (Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     g_return_val_if_fail (seat != NULL, FALSE);
@@ -1432,6 +1493,7 @@ seat_switch_to_greeter (Seat *seat)
 static void
 switch_authentication_complete_cb (Session *session, Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SeatPrivate *priv = seat_get_instance_private (seat);
 
     /* If authenticated, then unlock existing session or start new one */

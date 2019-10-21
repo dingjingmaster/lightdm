@@ -15,6 +15,8 @@
 #include <gio/gio.h>
 #include <gio/gunixsocketaddress.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "greeter-socket.h"
 
 enum {
@@ -46,6 +48,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (GreeterSocket, greeter_socket, G_TYPE_OBJECT)
 GreeterSocket *
 greeter_socket_new (const gchar *path)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSocket *socket = g_object_new (GREETER_SOCKET_TYPE, NULL);
     GreeterSocketPrivate *priv = greeter_socket_get_instance_private (socket);
 
@@ -57,6 +60,7 @@ greeter_socket_new (const gchar *path)
 static void
 greeter_disconnected_cb (Greeter *greeter, GreeterSocket *socket)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSocketPrivate *priv = greeter_socket_get_instance_private (socket);
 
     if (greeter == priv->greeter)
@@ -69,12 +73,13 @@ greeter_disconnected_cb (Greeter *greeter, GreeterSocket *socket)
 static gboolean
 greeter_connect_cb (GSocket *s, GIOCondition condition, GreeterSocket *socket)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSocketPrivate *priv = greeter_socket_get_instance_private (socket);
 
     g_autoptr(GError) error = NULL;
     g_autoptr(GSocket) new_socket = g_socket_accept (priv->socket, NULL, &error);
     if (error)
-        g_warning ("Failed to accept greeter connection: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to accept greeter connection: %s", error->message);
     if (!new_socket)
         return G_SOURCE_CONTINUE;
 
@@ -96,6 +101,7 @@ greeter_connect_cb (GSocket *s, GIOCondition condition, GreeterSocket *socket)
 gboolean
 greeter_socket_start (GreeterSocket *socket, GError **error)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSocketPrivate *priv = greeter_socket_get_instance_private (socket);
 
     g_return_val_if_fail (socket != NULL, FALSE);
@@ -126,6 +132,7 @@ greeter_socket_start (GreeterSocket *socket, GError **error)
                      "Failed to set permissions on greeter socket %s: %s",
                      priv->path,
                      g_strerror (errno));
+        CT_SYSLOG(LOG_ERR, "Failed to set permissions on greeter socket %s: %s", priv->path, g_strerror(errno));
         return FALSE;
     }
 
@@ -135,11 +142,13 @@ greeter_socket_start (GreeterSocket *socket, GError **error)
 static void
 greeter_socket_init (GreeterSocket *socket)
 {
+    CT_SYSLOG(LOG_INFO, "");
 }
 
 static void
 greeter_socket_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSocket *self = GREETER_SOCKET (object);
     GreeterSocketPrivate *priv = greeter_socket_get_instance_private (self);
 
@@ -157,6 +166,7 @@ greeter_socket_finalize (GObject *object)
 static void
 greeter_socket_class_init (GreeterSocketClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     object_class->finalize = greeter_socket_finalize;
@@ -170,4 +180,5 @@ greeter_socket_class_init (GreeterSocketClass *klass)
                       NULL,
                       NULL,
                       GREETER_TYPE, 0);
+    CT_SYSLOG(LOG_INFO, "signals CREATE_GREETER");
 }

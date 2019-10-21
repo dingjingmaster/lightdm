@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <fcntl.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "greeter-session.h"
 
 typedef struct
@@ -28,12 +30,14 @@ G_DEFINE_TYPE_WITH_PRIVATE (GreeterSession, greeter_session, SESSION_TYPE)
 GreeterSession *
 greeter_session_new (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return g_object_new (GREETER_SESSION_TYPE, NULL);
 }
 
 Greeter *
 greeter_session_get_greeter (GreeterSession *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSessionPrivate *priv = greeter_session_get_instance_private (session);
     g_return_val_if_fail (session != NULL, NULL);
     return priv->greeter;
@@ -42,13 +46,15 @@ greeter_session_get_greeter (GreeterSession *session)
 static gboolean
 greeter_session_start (Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSessionPrivate *priv = greeter_session_get_instance_private (GREETER_SESSION (session));
 
     /* Create a pipe to talk with the greeter */
+    CT_SYSLOG(LOG_INFO, "create a pipe to talk with the greeter");
     int to_greeter_pipe[2], from_greeter_pipe[2];
     if (pipe (to_greeter_pipe) != 0 || pipe (from_greeter_pipe) != 0)
     {
-        g_warning ("Failed to create pipes: %s", strerror (errno));
+        CT_SYSLOG(LOG_WARNING, "Failed to create pipes %s", strerror(errno));
         return FALSE;
     }
 
@@ -80,6 +86,7 @@ greeter_session_start (Session *session)
 static void
 greeter_session_stop (Session *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSessionPrivate *priv = greeter_session_get_instance_private (GREETER_SESSION (session));
 
     greeter_stop (priv->greeter);
@@ -90,6 +97,7 @@ greeter_session_stop (Session *session)
 static void
 greeter_session_init (GreeterSession *session)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSessionPrivate *priv = greeter_session_get_instance_private (session);
     priv->greeter = greeter_new ();
 }
@@ -97,6 +105,7 @@ greeter_session_init (GreeterSession *session)
 static void
 greeter_session_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GreeterSession *self = GREETER_SESSION (object);
     GreeterSessionPrivate *priv = greeter_session_get_instance_private (self);
 
@@ -108,6 +117,7 @@ greeter_session_finalize (GObject *object)
 static void
 greeter_session_class_init (GreeterSessionClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     SessionClass *session_class = SESSION_CLASS (klass);
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 

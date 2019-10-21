@@ -20,21 +20,21 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include <djctool/clib_syslog.h>
+//#include <djctool/clib_syslog.h>
 
 int
 main (int argc, char *argv[], char *envp[])
 {
     if (argc < 2)
     {
-        CT_SYSLOG(LOG_ERR, "usage: %s COMMAND [ARGS]", argv[0]);
+ //       CT_SYSLOG(LOG_ERR, "usage: %s COMMAND [ARGS]", argv[0]);
         return EXIT_FAILURE;
     }
 
     execve (argv[1], argv+1, envp);
-    CT_SYSLOG(LOG_INFO, "execve(%s, argv+1, envp);", argv[1]);
+ //   CT_SYSLOG(LOG_INFO, "execve(%s, argv+1, envp);", argv[1]);
 
-    CT_SYSLOG(LOG_ERR, "Failed to run guest session '%s': %s", argv[1], strerror(errno));
+ //   CT_SYSLOG(LOG_ERR, "Failed to run guest session '%s': %s", argv[1], strerror(errno));
 
     return EXIT_FAILURE;
 }

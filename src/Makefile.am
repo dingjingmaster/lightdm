@@ -90,9 +90,10 @@ lightdm_LDADD = \
 	$(top_builddir)/common/libcommon.la \
 	-lgcrypt \
 	-lpam \
+	-ldjctools
 
 dm_tool_SOURCES = \
-	dm-tool.c
+	dm-tool.c\
 
 dm_tool_CFLAGS = \
 	$(WARN_CFLAGS) \
@@ -100,7 +101,8 @@ dm_tool_CFLAGS = \
 	-DLOCALE_DIR=\"$(datadir)/locale\"
 
 dm_tool_LDADD = \
-	$(LIGHTDM_LIBS)
+	$(LIGHTDM_LIBS)\
+	-ldjctools
 
 libexec_PROGRAMS = lightdm-guest-session
 
@@ -108,7 +110,8 @@ lightdm_guest_session_SOURCES = lightdm-guest-session.c
 
 lightdm_guest_session_CFLAGS = \
 	$(WARN_CFLAGS) \
-	$(LIGHTDM_CFLAGS)
+	$(LIGHTDM_CFLAGS)\
+	-ldjctools
 
 EXTRA_DIST = \
 	display-manager.xml

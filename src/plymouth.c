@@ -94,10 +94,11 @@ void
 plymouth_quit (gboolean retain_splash)
 {
     CT_SYSLOG(LOG_INFO, "");
-    if (retain_splash)
+    if (retain_splash) {
         CT_SYSLOG (LOG_DEBUG, "Quitting Plymouth; retaining splash");
-    else
+    } else {
         CT_SYSLOG (LOG_DEBUG, "Quitting Plymouth");
+    }
 
     have_pinged = TRUE;
     is_running = FALSE;

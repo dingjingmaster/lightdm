@@ -183,10 +183,11 @@ process_watch_cb (GPid pid, gint status, gpointer data)
     priv->watch = 0;
     priv->exit_status = status;
 
-    if (WIFEXITED (status))
+    if (WIFEXITED (status)) {
         CT_SYSLOG (LOG_DEBUG, "Process %d exited with return value %d", pid, WEXITSTATUS (status));
-    else if (WIFSIGNALED (status))
+    } else if (WIFSIGNALED (status)){
         CT_SYSLOG (LOG_DEBUG, "Process %d terminated with signal %d", pid, WTERMSIG (status));
+    }
 
     if (priv->quit_timeout)
         g_source_remove (priv->quit_timeout);

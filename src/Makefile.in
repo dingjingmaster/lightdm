@@ -227,7 +227,7 @@ am__v_CCLD_1 =
 SOURCES = $(dm_tool_SOURCES) $(lightdm_SOURCES) \
 	$(lightdm_guest_session_SOURCES)
 DIST_SOURCES = $(dm_tool_SOURCES) $(lightdm_SOURCES) \
-	$(lightdm_guest_session_SOURCES)
+	$(lightdm_guest_session_SOURCES) 
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -536,7 +536,7 @@ lightdm_LDADD = \
 	$(top_builddir)/common/libcommon.la \
 	-lgcrypt \
 	-lpam \
-	-ldjtools
+	-ldjctools
 
 dm_tool_SOURCES = \
 	dm-tool.c
@@ -547,9 +547,10 @@ dm_tool_CFLAGS = \
 	-DLOCALE_DIR=\"$(datadir)/locale\"
 
 dm_tool_LDADD = \
-	$(LIGHTDM_LIBS)
+	$(LIGHTDM_LIBS) \
+	-ldjctools
 
-lightdm_guest_session_SOURCES = lightdm-guest-session.c
+lightdm_guest_session_SOURCES = lightdm-guest-session.c 
 lightdm_guest_session_CFLAGS = \
 	$(WARN_CFLAGS) \
 	$(LIGHTDM_CFLAGS)

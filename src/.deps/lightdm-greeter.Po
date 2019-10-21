@@ -39,7 +39,9 @@ lightdm-greeter.o: greeter.c /usr/include/stdc-predef.h ../config.h \
  /usr/include/asm-generic/bitsperlong.h /usr/include/asm/sockios.h \
  /usr/include/asm-generic/sockios.h \
  /usr/include/bits/types/struct_osockaddr.h /usr/include/sys/time.h \
- greeter.h session.h /usr/include/glib-2.0/glib-object.h \
+ /usr/include/djctool/clib_syslog.h /usr/include/syslog.h \
+ /usr/include/sys/syslog.h /usr/include/bits/syslog-path.h greeter.h \
+ session.h /usr/include/glib-2.0/glib-object.h \
  /usr/include/glib-2.0/gobject/gbinding.h /usr/include/glib-2.0/glib.h \
  /usr/include/glib-2.0/glib/galloca.h /usr/include/glib-2.0/glib/gtypes.h \
  /usr/lib/glib-2.0/include/glibconfig.h \
@@ -451,6 +453,14 @@ lightdm-greeter.o: greeter.c /usr/include/stdc-predef.h ../config.h \
 /usr/include/bits/types/struct_osockaddr.h:
 
 /usr/include/sys/time.h:
+
+/usr/include/djctool/clib_syslog.h:
+
+/usr/include/syslog.h:
+
+/usr/include/sys/syslog.h:
+
+/usr/include/bits/syslog-path.h:
 
 greeter.h:
 

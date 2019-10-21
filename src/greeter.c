@@ -488,10 +488,9 @@ authentication_complete_cb (Session *session, Greeter *greeter)
     int result = session_get_authentication_result (session);
     if (session_get_is_authenticated (session))
     {
-        if (session_get_user (session))
+        if (session_get_user (session)) {
             CT_SYSLOG(LOG_DEBUG, "User %s authorized", session_get_username (session));
-        else
-        {
+        } else {
             CT_SYSLOG(LOG_DEBUG, "User %s authorized, but no account of that name exists", session_get_username (session));
             result = PAM_USER_UNKNOWN;
         }
@@ -776,10 +775,11 @@ handle_start_session (Greeter *greeter, const gchar *session)
     gboolean result;
     if (priv->guest_account_authenticated || session_get_is_authenticated (priv->authentication_session))
     {
-        if (session)
+        if (session) {
             CT_SYSLOG(LOG_DEBUG, "Greeter requests session %s", session);
-        else
+        } else {
             CT_SYSLOG(LOG_DEBUG, "Greeter requests default session");
+        }
         priv->start_session = TRUE;
         g_signal_emit (greeter, signals[START_SESSION], 0, session_type, session, &result);
         CT_SYSLOG(LOG_INFO, "signal emit START_SESSION");
@@ -865,7 +865,7 @@ get_message_length (Greeter *greeter)
 
     if (HEADER_SIZE + payload_length < HEADER_SIZE)
     {
-        CT_SYSLOG(LOG_ARNING, "Payload length of %u octets too long", payload_length);
+        CT_SYSLOG(LOG_WARNING, "Payload length of %u octets too long", payload_length);
         return HEADER_SIZE;
     }
 

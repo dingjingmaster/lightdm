@@ -15,6 +15,8 @@
 
 #include "login1.h"
 
+#include <djctool/clib_syslog.h>
+
 #define LOGIN1_SERVICE_NAME "org.freedesktop.login1"
 #define LOGIN1_OBJECT_NAME "/org/freedesktop/login1"
 #define LOGIN1_MANAGER_INTERFACE_NAME "org.freedesktop.login1.Manager"
@@ -79,6 +81,7 @@ static Login1Service *singleton = NULL;
 Login1Service *
 login1_service_get_instance (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (!singleton)
         singleton = g_object_new (LOGIN1_SERVICE_TYPE, NULL);
     return singleton;
@@ -87,18 +90,21 @@ login1_service_get_instance (void)
 static void
 update_property (Login1Seat *seat, const gchar *name, GVariant *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1SeatPrivate *priv = login1_seat_get_instance_private (seat);
 
     if (strcmp (name, "CanGraphical") == 0 && g_variant_is_of_type (value, G_VARIANT_TYPE_BOOLEAN))
     {
         priv->can_graphical = g_variant_get_boolean (value);
         g_signal_emit (seat, seat_signals[CAN_GRAPHICAL_CHANGED], 0);
+        CT_SYSLOG(LOG_INFO, "signal emit CAN_GRAPHICAL_CHANGED");
     }
     else if (strcmp (name, "ActiveSession") == 0 && g_variant_is_of_type (value, G_VARIANT_TYPE ("(so)")))
     {
         const gchar *login1_session_id;
         g_variant_get (value, "(&so)", &login1_session_id, NULL);
         g_signal_emit (seat, seat_signals[ACTIVE_SESSION_CHANGED], 0, login1_session_id);
+        CT_SYSLOG(LOG_INFO, "signal emit ACTIVE_SESSION_CHANGED");
     }
 }
 
@@ -111,6 +117,7 @@ seat_properties_changed_cb (GDBusConnection *connection,
                             GVariant *parameters,
                             gpointer user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1Seat *seat = user_data;
     Login1SeatPrivate *priv = login1_seat_get_instance_private (seat);
 
@@ -120,8 +127,10 @@ seat_properties_changed_cb (GDBusConnection *connection,
 
     const gchar *name;
     GVariant *value;
-    while (g_variant_iter_loop (iter, "{&sv}", &name, &value))
+    while (g_variant_iter_loop (iter, "{&sv}", &name, &value)) {
         update_property (seat, name, value);
+        CT_SYSLOG(LOG_INFO, "update property set:%s, name:%s, value:%s", seat, name, value);
+    }
 
     while (g_variant_iter_loop (invalidated_properties, "&s", &name))
     {
@@ -138,7 +147,7 @@ seat_properties_changed_cb (GDBusConnection *connection,
                                                                   NULL,
                                                                   &error);
         if (error)
-            g_warning ("Error updating seat property %s: %s", name, error->message);
+            CT_SYSLOG (LOG_WARNING, "Error updating seat property %s: %s", name, error->message);
         if (result)
         {
             g_autoptr(GVariant) v = NULL;
@@ -160,6 +169,7 @@ add_seat (Login1Service *service, const gchar *id, const gchar *path)
     s_priv->id = g_strdup (id);
     s_priv->path = g_strdup (path);
 
+    CT_SYSLOG(LOG_INFO, "");
     s_priv->signal_id = g_dbus_connection_signal_subscribe (s_priv->connection,
                                                             LOGIN1_SERVICE_NAME,
                                                             "org.freedesktop.DBus.Properties",
@@ -185,7 +195,7 @@ add_seat (Login1Service *service, const gchar *id, const gchar *path)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Failed to get seat properties: %s", error->message);
+        CT_SYSLOG (LOG_WARNING, "Failed to get seat properties: %s", error->message);
     if (result)
     {
         g_autoptr(GVariantIter) properties = NULL;
@@ -216,6 +226,7 @@ signal_cb (GDBusConnection *connection,
            GVariant *parameters,
            gpointer user_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1Service *service = user_data;
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
@@ -229,6 +240,7 @@ signal_cb (GDBusConnection *connection,
         {
             seat = add_seat (service, id, path);
             g_signal_emit (service, service_signals[SEAT_ADDED], 0, seat);
+            CT_SYSLOG(LOG_INFO, "emit signal SEAT_ADDED");
         }
     }
     else if (strcmp (signal_name, "SeatRemoved") == 0)
@@ -241,6 +253,7 @@ signal_cb (GDBusConnection *connection,
         {
             priv->seats = g_list_remove (priv->seats, seat);
             g_signal_emit (service, service_signals[SEAT_REMOVED], 0, seat);
+            CT_SYSLOG(LOG_INFO, "emit signal SEAT_REMOVED");
         }
     }
 }
@@ -248,6 +261,7 @@ signal_cb (GDBusConnection *connection,
 gboolean
 login1_service_connect (Login1Service *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
     g_return_val_if_fail (service != NULL, FALSE);
@@ -258,7 +272,7 @@ login1_service_connect (Login1Service *service)
     g_autoptr(GError) error = NULL;
     priv->connection = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     if (error)
-        g_warning ("Failed to get system bus: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get system bus: %s", error->message);
     if (!priv->connection)
         return FALSE;
 
@@ -285,7 +299,7 @@ login1_service_connect (Login1Service *service)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Failed to get list of logind seats: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Failed to get list of logind seats: %s", error->message);
     if (!result)
         return FALSE;
 
@@ -304,6 +318,7 @@ login1_service_connect (Login1Service *service)
 gboolean
 login1_service_get_is_connected (Login1Service *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
     g_return_val_if_fail (service != NULL, FALSE);
     return priv->connected;
@@ -312,6 +327,7 @@ login1_service_get_is_connected (Login1Service *service)
 GList *
 login1_service_get_seats (Login1Service *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
     g_return_val_if_fail (service != NULL, NULL);
     return priv->seats;
@@ -320,6 +336,7 @@ login1_service_get_seats (Login1Service *service)
 Login1Seat *
 login1_service_get_seat (Login1Service *service, const gchar *id)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
     g_return_val_if_fail (service != NULL, NULL);
@@ -339,12 +356,13 @@ login1_service_get_seat (Login1Service *service, const gchar *id)
 void
 login1_service_lock_session (Login1Service *service, const gchar *session_id)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
     g_return_if_fail (service != NULL);
     g_return_if_fail (session_id != NULL);
 
-    g_debug ("Locking login1 session %s", session_id);
+    CT_SYSLOG(LOG_DEBUG, "Locking login1 session %s", session_id);
 
     if (!session_id)
         return;
@@ -362,18 +380,19 @@ login1_service_lock_session (Login1Service *service, const gchar *session_id)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error locking login1 session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error locking login1 session: %s", error->message);
 }
 
 void
 login1_service_unlock_session (Login1Service *service, const gchar *session_id)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
     g_return_if_fail (service != NULL);
     g_return_if_fail (session_id != NULL);
 
-    g_debug ("Unlocking login1 session %s", session_id);
+    CT_SYSLOG(LOG_DEBUG, "Unlocking login1 session %s", session_id);
 
     if (!session_id)
         return;
@@ -391,18 +410,19 @@ login1_service_unlock_session (Login1Service *service, const gchar *session_id)
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error unlocking login1 session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error unlocking login1 session: %s", error->message);
 }
 
 void
 login1_service_activate_session (Login1Service *service, const gchar *session_id)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1ServicePrivate *priv = login1_service_get_instance_private (service);
 
     g_return_if_fail (service != NULL);
     g_return_if_fail (session_id != NULL);
 
-    g_debug ("Activating login1 session %s", session_id);
+    CT_SYSLOG(LOG_DEBUG, "Activating login1 session %s", session_id);
 
     if (!session_id)
         return;
@@ -420,7 +440,7 @@ login1_service_activate_session (Login1Service *service, const gchar *session_id
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error activating login1 session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error activating login1 session: %s", error->message);
 }
 
 void
@@ -431,7 +451,7 @@ login1_service_terminate_session (Login1Service *service, const gchar *session_i
     g_return_if_fail (service != NULL);
     g_return_if_fail (session_id != NULL);
 
-    g_debug ("Terminating login1 session %s", session_id);
+    CT_SYSLOG(LOG_DEBUG, "Terminating login1 session %s", session_id);
 
     if (!session_id)
         return;
@@ -449,17 +469,19 @@ login1_service_terminate_session (Login1Service *service, const gchar *session_i
                                                               NULL,
                                                               &error);
     if (error)
-        g_warning ("Error terminating login1 session: %s", error->message);
+        CT_SYSLOG(LOG_WARNING, "Error terminating login1 session: %s", error->message);
 }
 
 static void
 login1_service_init (Login1Service *service)
 {
+    CT_SYSLOG(LOG_INFO, "");
 }
 
 static void
 login1_service_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1Service *self = LOGIN1_SERVICE (object);
     Login1ServicePrivate *priv = login1_service_get_instance_private (self);
 
@@ -473,10 +495,12 @@ login1_service_finalize (GObject *object)
 static void
 login1_service_class_init (Login1ServiceClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     object_class->finalize = login1_service_finalize;
 
+    CT_SYSLOG(LOG_INFO, "signal add SEAT_ADDED");
     service_signals[SEAT_ADDED] =
         g_signal_new (LOGIN1_SERVICE_SIGNAL_SEAT_ADDED,
                       G_TYPE_FROM_CLASS (klass),
@@ -485,6 +509,7 @@ login1_service_class_init (Login1ServiceClass *klass)
                       NULL, NULL,
                       NULL,
                       G_TYPE_NONE, 1, LOGIN1_SEAT_TYPE);
+    CT_SYSLOG(LOG_INFO, "signal add SEAT_REMOVED");
     service_signals[SEAT_REMOVED] =
         g_signal_new (LOGIN1_SERVICE_SIGNAL_SEAT_REMOVED,
                       G_TYPE_FROM_CLASS (klass),
@@ -498,6 +523,7 @@ login1_service_class_init (Login1ServiceClass *klass)
 const gchar *
 login1_seat_get_id (Login1Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1SeatPrivate *priv = login1_seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, NULL);
     return priv->id;
@@ -506,6 +532,7 @@ login1_seat_get_id (Login1Seat *seat)
 gboolean
 login1_seat_get_can_graphical (Login1Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1SeatPrivate *priv = login1_seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, FALSE);
     return priv->can_graphical;
@@ -514,6 +541,7 @@ login1_seat_get_can_graphical (Login1Seat *seat)
 gboolean
 login1_seat_get_can_multi_session (Login1Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1SeatPrivate *priv = login1_seat_get_instance_private (seat);
     g_return_val_if_fail (seat != NULL, FALSE);
     return priv->can_multi_session;
@@ -522,11 +550,13 @@ login1_seat_get_can_multi_session (Login1Seat *seat)
 static void
 login1_seat_init (Login1Seat *seat)
 {
+    CT_SYSLOG(LOG_INFO, "");
 }
 
 static void
 login1_seat_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Login1Seat *self = LOGIN1_SEAT (object);
     Login1SeatPrivate *priv = login1_seat_get_instance_private (self);
 
@@ -541,10 +571,12 @@ login1_seat_finalize (GObject *object)
 static void
 login1_seat_class_init (Login1SeatClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     object_class->finalize = login1_seat_finalize;
 
+    CT_SYSLOG(LOG_INFO, "signal CAN_GRAPHICAL_CHANGED");
     seat_signals[CAN_GRAPHICAL_CHANGED] =
         g_signal_new (LOGIN1_SEAT_SIGNAL_CAN_GRAPHICAL_CHANGED,
                       G_TYPE_FROM_CLASS (klass),
@@ -554,6 +586,7 @@ login1_seat_class_init (Login1SeatClass *klass)
                       NULL,
                       G_TYPE_NONE, 0);
 
+    CT_SYSLOG(LOG_INFO, "signal ACTIVE_SESSION_CHANGED");
     seat_signals[ACTIVE_SESSION_CHANGED] =
         g_signal_new (LOGIN1_SIGNAL_ACTIVE_SESION_CHANGED,
                       G_TYPE_FROM_CLASS (klass),

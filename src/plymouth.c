@@ -14,6 +14,8 @@
 
 #include "plymouth.h"
 
+#include <djctool/clib_syslog.h>
+
 static gboolean have_pinged = FALSE;
 static gboolean have_checked_active_vt = FALSE;
 
@@ -24,12 +26,13 @@ static gboolean has_active_vt = FALSE;
 static gboolean
 plymouth_run_command (const gchar *command, gint *exit_status)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autofree gchar *command_line = g_strdup_printf ("plymouth %s", command);
     g_autoptr(GError) error = NULL;
     gboolean result = g_spawn_command_line_sync (command_line, NULL, NULL, exit_status, &error);
 
     if (error)
-        g_debug ("Could not run %s: %s", command_line, error->message);
+        CT_SYSLOG (LOG_DEBUG, "Could not run %s: %s", command_line, error->message);
 
     return result;
 }
@@ -37,6 +40,8 @@ plymouth_run_command (const gchar *command, gint *exit_status)
 static gboolean
 plymouth_command_returns_true (gchar *command)
 {
+    CT_SYSLOG(LOG_INFO, "");
+    CT_SYSLOG(LOG_INFO, "plymouth command: %s", command);
     gint exit_status;
     if (!plymouth_run_command (command, &exit_status))
         return FALSE;
@@ -46,6 +51,7 @@ plymouth_command_returns_true (gchar *command)
 gboolean
 plymouth_get_is_running (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (!have_pinged)
     {
         have_pinged = TRUE;
@@ -59,12 +65,14 @@ plymouth_get_is_running (void)
 gboolean
 plymouth_get_is_active (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return plymouth_get_is_running () && is_active;
 }
 
 gboolean
 plymouth_has_active_vt (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (!have_checked_active_vt)
     {
         have_checked_active_vt = TRUE;
@@ -77,7 +85,7 @@ plymouth_has_active_vt (void)
 void
 plymouth_deactivate (void)
 {
-    g_debug ("Deactivating Plymouth");
+    CT_SYSLOG (LOG_DEBUG, "Deactivating Plymouth");
     is_active = FALSE;
     plymouth_run_command ("deactivate", NULL);
 }
@@ -85,10 +93,11 @@ plymouth_deactivate (void)
 void
 plymouth_quit (gboolean retain_splash)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (retain_splash)
-        g_debug ("Quitting Plymouth; retaining splash");
+        CT_SYSLOG (LOG_DEBUG, "Quitting Plymouth; retaining splash");
     else
-        g_debug ("Quitting Plymouth");
+        CT_SYSLOG (LOG_DEBUG, "Quitting Plymouth");
 
     have_pinged = TRUE;
     is_running = FALSE;

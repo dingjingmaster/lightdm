@@ -12,6 +12,8 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <djctool/clib_syslog.h>
+
 #include "guest-account.h"
 #include "configuration.h"
 
@@ -19,6 +21,8 @@ static gchar *
 get_setup_script (void)
 {
     static gchar *setup_script = NULL;
+
+    CT_SYSLOG(LOG_INFO, "");
 
     if (setup_script)
         return setup_script;
@@ -35,12 +39,14 @@ get_setup_script (void)
 gboolean
 guest_account_is_installed (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     return get_setup_script () != NULL;
 }
 
 static gboolean
 run_script (const gchar *script, gchar **stdout_text, gint *exit_status, GError **error)
 {
+    CT_SYSLOG(LOG_INFO, "");
     gint argc;
     g_auto(GStrv) argv = NULL;
     if (!g_shell_parse_argv (script, &argc, &argv, error))
@@ -57,20 +63,21 @@ run_script (const gchar *script, gchar **stdout_text, gint *exit_status, GError 
 gchar *
 guest_account_setup (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autofree gchar *command = g_strdup_printf ("%s add", get_setup_script ());
-    g_debug ("Opening guest account with command '%s'", command);
+    CT_SYSLOG (LOG_DEBUG, "Opening guest account with command '%s'", command);
     g_autofree gchar *stdout_text = NULL;
     gint exit_status;
     g_autoptr(GError) error = NULL;
     gboolean result = run_script (command, &stdout_text, &exit_status, &error);
     if (error)
-        g_warning ("Error running guest account setup script '%s': %s", get_setup_script (), error->message);
+        CT_SYSLOG (LOG_WARNING, "Error running guest account setup script '%s': %s", get_setup_script (), error->message);
     if (!result)
         return NULL;
 
     if (exit_status != 0)
     {
-        g_debug ("Guest account setup script returns %d: %s", exit_status, stdout_text);
+        CT_SYSLOG (LOG_DEBUG, "Guest account setup script returns %d: %s", exit_status, stdout_text);
         return NULL;
     }
 
@@ -84,11 +91,11 @@ guest_account_setup (void)
 
     if (strcmp (username, "") == 0)
     {
-        g_debug ("Guest account setup script didn't return a username");
+        CT_SYSLOG (LOG_DEBUG, "Guest account setup script didn't return a username");
         return NULL;
     }
 
-    g_debug ("Guest account %s setup", username);
+    CT_SYSLOG (LOG_DEBUG, "Guest account %s setup", username);
 
     return g_steal_pointer (&username);
 }
@@ -96,16 +103,17 @@ guest_account_setup (void)
 void
 guest_account_cleanup (const gchar *username)
 {
+    CT_SYSLOG(LOG_INFO, "");
     g_autofree gchar *command = g_strdup_printf ("%s remove %s", get_setup_script (), username);
-    g_debug ("Closing guest account %s with command '%s'", username, command);
+    CT_SYSLOG(LOG_DEBUG, "Closing guest account %s with command '%s'", username, command);
 
     gint exit_status;
     g_autoptr(GError) error = NULL;
     gboolean result = run_script (command, NULL, &exit_status, &error);
 
     if (error)
-        g_warning ("Error running guest account cleanup script '%s': %s", get_setup_script (), error->message);
+        CT_SYSLOG(LOG_WARNING, "Error running guest account cleanup script '%s': %s", get_setup_script (), error->message);
 
     if (result && exit_status != 0)
-        g_debug ("Guest account cleanup script returns %d", exit_status);
+        CT_SYSLOG (LOG_DEBUG, "Guest account cleanup script returns %d", exit_status);
 }

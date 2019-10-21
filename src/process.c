@@ -22,6 +22,8 @@
 #include "log-file.h"
 #include "process.h"
 
+#include <djctool/clib_syslog.h>
+
 enum {
     GOT_DATA,
     GOT_SIGNAL,
@@ -76,6 +78,7 @@ static int signal_pipe[2];
 Process *
 process_get_current (void)
 {
+    CT_SYSLOG(LOG_INFO, "");
     if (current_process)
         return current_process;
 
@@ -89,6 +92,7 @@ process_get_current (void)
 Process *
 process_new (ProcessRunFunc run_func, gpointer run_func_data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Process *process = g_object_new (PROCESS_TYPE, NULL);
     ProcessPrivate *priv = process_get_instance_private (process);
 
@@ -101,6 +105,7 @@ process_new (ProcessRunFunc run_func, gpointer run_func_data)
 void
 process_set_log_file (Process *process, const gchar *path, gboolean log_stdout, LogMode log_mode)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
 
     g_return_if_fail (process != NULL);
@@ -114,6 +119,7 @@ process_set_log_file (Process *process, const gchar *path, gboolean log_stdout, 
 void
 process_set_clear_environment (Process *process, gboolean clear_environment)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_if_fail (process != NULL);
     priv->clear_environment = clear_environment;
@@ -122,6 +128,7 @@ process_set_clear_environment (Process *process, gboolean clear_environment)
 gboolean
 process_get_clear_environment (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, FALSE);
     return priv->clear_environment;
@@ -130,6 +137,7 @@ process_get_clear_environment (Process *process)
 void
 process_set_env (Process *process, const gchar *name, const gchar *value)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_if_fail (process != NULL);
     g_return_if_fail (name != NULL);
@@ -139,6 +147,7 @@ process_set_env (Process *process, const gchar *name, const gchar *value)
 const gchar *
 process_get_env (Process *process, const gchar *name)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, NULL);
     g_return_val_if_fail (name != NULL, NULL);
@@ -148,6 +157,7 @@ process_get_env (Process *process, const gchar *name)
 void
 process_set_command (Process *process, const gchar *command)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_if_fail (process != NULL);
     g_free (priv->command);
@@ -157,6 +167,7 @@ process_set_command (Process *process, const gchar *command)
 const gchar *
 process_get_command (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, NULL);
     return priv->command;
@@ -165,6 +176,7 @@ process_get_command (Process *process)
 static void
 process_watch_cb (GPid pid, gint status, gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Process *process = data;
     ProcessPrivate *priv = process_get_instance_private (process);
 
@@ -172,9 +184,9 @@ process_watch_cb (GPid pid, gint status, gpointer data)
     priv->exit_status = status;
 
     if (WIFEXITED (status))
-        g_debug ("Process %d exited with return value %d", pid, WEXITSTATUS (status));
+        CT_SYSLOG (LOG_DEBUG, "Process %d exited with return value %d", pid, WEXITSTATUS (status));
     else if (WIFSIGNALED (status))
-        g_debug ("Process %d terminated with signal %d", pid, WTERMSIG (status));
+        CT_SYSLOG (LOG_DEBUG, "Process %d terminated with signal %d", pid, WTERMSIG (status));
 
     if (priv->quit_timeout)
         g_source_remove (priv->quit_timeout);
@@ -182,12 +194,14 @@ process_watch_cb (GPid pid, gint status, gpointer data)
     priv->pid = 0;
     g_hash_table_remove (processes, GINT_TO_POINTER (pid));
 
+    CT_SYSLOG(LOG_INFO, "signal emit STOPPED");
     g_signal_emit (process, signals[STOPPED], 0);
 }
 
 gboolean
 process_start (Process *process, gboolean block)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
 
     g_return_val_if_fail (process != NULL, FALSE);
@@ -199,7 +213,7 @@ process_start (Process *process, gboolean block)
     g_autoptr(GError) error = NULL;
     if (!g_shell_parse_argv (priv->command, &argc, &argv, &error))
     {
-        g_warning ("Error parsing command %s: %s", priv->command, error->message);
+        CT_SYSLOG (LOG_WARNING, "Error parsing command %s: %s", priv->command, error->message);
         return FALSE;
     }
 
@@ -257,11 +271,11 @@ process_start (Process *process, gboolean block)
 
     if (pid < 0)
     {
-        g_warning ("Failed to fork: %s", strerror (errno));
+        CT_SYSLOG (LOG_WARNING, "Failed to fork: %s", strerror (errno));
         return FALSE;
     }
 
-    g_debug ("Launching process %d: %s", pid, priv->command);
+    CT_SYSLOG (LOG_DEBUG, "Launching process %d: %s", pid, priv->command);
 
     priv->pid = pid;
 
@@ -283,6 +297,7 @@ process_start (Process *process, gboolean block)
 gboolean
 process_get_is_running (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, FALSE);
     return priv->pid != 0;
@@ -291,6 +306,7 @@ process_get_is_running (Process *process)
 GPid
 process_get_pid (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, 0);
     return priv->pid;
@@ -299,6 +315,7 @@ process_get_pid (Process *process)
 void
 process_signal (Process *process, int signum)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
 
     g_return_if_fail (process != NULL);
@@ -306,23 +323,25 @@ process_signal (Process *process, int signum)
     if (priv->pid == 0)
         return;
 
-    g_debug ("Sending signal %d to process %d", signum, priv->pid);
+    CT_SYSLOG (LOG_DEBUG, "Sending signal %d to process %d", signum, priv->pid);
 
     if (kill (priv->pid, signum) < 0)
     {
         /* Ignore ESRCH, we will pick that up in our wait */
         if (errno != ESRCH)
-            g_warning ("Error sending signal %d to process %d: %s", signum, priv->pid, strerror (errno));
+            CT_SYSLOG (LOG_WARNING, "Error sending signal %d to process %d: %s", signum, priv->pid, strerror (errno));
     }
 }
 
 static gboolean
 quit_timeout_cb (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
 
     priv->quit_timeout = 0;
     process_signal (process, SIGKILL);
+    CT_SYSLOG(LOG_INFO, "process SIGILL");
 
     return FALSE;
 }
@@ -330,6 +349,7 @@ quit_timeout_cb (Process *process)
 void
 process_stop (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
 
     g_return_if_fail (process != NULL);
@@ -345,11 +365,13 @@ process_stop (Process *process)
     /* Send SIGTERM, and then SIGKILL if no response */
     priv->quit_timeout = g_timeout_add (5000, (GSourceFunc) quit_timeout_cb, process);
     process_signal (process, SIGTERM);
+    CT_SYSLOG(LOG_INFO, "process SIGTERM");
 }
 
 int
 process_get_exit_status (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     g_return_val_if_fail (process != NULL, -1);
     return priv->exit_status;
@@ -358,6 +380,7 @@ process_get_exit_status (Process *process)
 static void
 process_init (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
     ProcessPrivate *priv = process_get_instance_private (process);
     priv->env = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
 }
@@ -365,11 +388,13 @@ process_init (Process *process)
 static void
 process_stopped (Process *process)
 {
+    CT_SYSLOG(LOG_INFO, "");
 }
 
 static void
 process_finalize (GObject *object)
 {
+    CT_SYSLOG(LOG_INFO, "");
     Process *self = PROCESS (object);
     ProcessPrivate *priv = process_get_instance_private (self);
 
@@ -384,8 +409,10 @@ process_finalize (GObject *object)
     if (priv->watch)
         g_source_remove (priv->watch);
 
-    if (priv->pid)
+    if (priv->pid) {
         kill (priv->pid, SIGTERM);
+        CT_SYSLOG(LOG_INFO, "kill %d SIGTERM", priv->pid);
+    }
 
     G_OBJECT_CLASS (process_parent_class)->finalize (object);
 }
@@ -393,6 +420,7 @@ process_finalize (GObject *object)
 static void
 signal_cb (int signum, siginfo_t *info, void *data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     /* Check if we are from a forked process that hasn't updated the signal handlers or execed.
        If so, then we should just quit */
     if (getpid () != signal_pid)
@@ -407,23 +435,26 @@ signal_cb (int signum, siginfo_t *info, void *data)
 static gboolean
 handle_signal (GIOChannel *source, GIOCondition condition, gpointer data)
 {
+    CT_SYSLOG(LOG_INFO, "");
     errno = 0;
     int signo;
     pid_t pid;
     if (read (signal_pipe[0], &signo, sizeof (int)) != sizeof (int) ||
         read (signal_pipe[0], &pid, sizeof (pid_t)) != sizeof (pid_t))
     {
-        g_warning ("Error reading from signal pipe: %s", strerror (errno));
+        CT_SYSLOG (LOG_WARNING,"Error reading from signal pipe: %s", strerror (errno));
         return FALSE;
     }
 
-    g_debug ("Got signal %d from process %d", signo, pid);
+    CT_SYSLOG (LOG_DEBUG, "Got signal %d from process %d", signo, pid);
 
     Process *process = g_hash_table_lookup (processes, GINT_TO_POINTER (pid));
     if (process == NULL)
         process = process_get_current ();
-    if (process)
+    if (process) {
         g_signal_emit (process, signals[GOT_SIGNAL], 0, signo);
+        CT_SYSLOG(LOG_INFO, "emit signal GOT_SIGNAL");
+    }
 
     return TRUE;
 }
@@ -431,12 +462,14 @@ handle_signal (GIOChannel *source, GIOCondition condition, gpointer data)
 static void
 process_class_init (ProcessClass *klass)
 {
+    CT_SYSLOG(LOG_INFO, "");
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
     struct sigaction action;
 
     klass->stopped = process_stopped;
     object_class->finalize = process_finalize;
 
+    CT_SYSLOG(LOG_INFO, "signal new GOT_DATA");
     signals[GOT_DATA] =
         g_signal_new (PROCESS_SIGNAL_GOT_DATA,
                       G_TYPE_FROM_CLASS (klass),
@@ -445,6 +478,7 @@ process_class_init (ProcessClass *klass)
                       NULL, NULL,
                       NULL,
                       G_TYPE_NONE, 0);
+    CT_SYSLOG(LOG_INFO, "signal new GOT_INFO");
     signals[GOT_SIGNAL] =
         g_signal_new (PROCESS_SIGNAL_GOT_SIGNAL,
                       G_TYPE_FROM_CLASS (klass),
@@ -453,6 +487,7 @@ process_class_init (ProcessClass *klass)
                       NULL, NULL,
                       NULL,
                       G_TYPE_NONE, 1, G_TYPE_INT);
+    CT_SYSLOG(LOG_INFO, "signal new STOPPED");
     signals[STOPPED] =
         g_signal_new (PROCESS_SIGNAL_STOPPED,
                       G_TYPE_FROM_CLASS (klass),
@@ -466,7 +501,7 @@ process_class_init (ProcessClass *klass)
     processes = g_hash_table_new_full (g_direct_hash, g_direct_equal, NULL, g_object_unref);
     signal_pid = getpid ();
     if (pipe (signal_pipe) != 0)
-        g_critical ("Failed to create signal pipe");
+        CT_SYSLOG (LOG_CRIT, "Failed to create signal pipe");
     fcntl (signal_pipe[0], F_SETFD, FD_CLOEXEC);
     fcntl (signal_pipe[1], F_SETFD, FD_CLOEXEC);
     g_io_add_watch (g_io_channel_unix_new (signal_pipe[0]), G_IO_IN, handle_signal, NULL);
